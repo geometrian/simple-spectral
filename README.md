@@ -1,2 +1,4 @@
-# simple-spectral
-A Simple Spectral Renderer
+# Simple Spectral
+
+## A Simple Spectral Renderer
+
