@@ -38,6 +38,10 @@ Renderer::Renderer(Options const& options) :
 		_threads.resize(std::thread::hardware_concurrency());
 	#endif
 
+	//float X = Spectrum::integrate(Color::data->D65, Color::data->std_obs_xbar.spec);
+	//float Y = Spectrum::integrate(Color::data->D65, Color::data->std_obs_ybar.spec);
+	//float Z = Spectrum::integrate(Color::data->D65, Color::data->std_obs_zbar.spec);
+
 	_render_continue = true;
 }
 Renderer::~Renderer() {
@@ -221,10 +225,10 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	return ciexyz_avg;
 }
 void   Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
-	//Accumulate into CIE XYZ instead of a `Spectrum`.  This way we avoid quantization
-	//	artifacts and a large memory overhead per-pixel (in a more-sophisticated renderer, the
-	//	pixel data would be stored for longer, e.g. to do nontrivial reconstruction filtering),
-	//	for the (small) cost of having to do the conversion to XYZ for each sample.
+	//Accumulate into CIE XYZ instead of a `Spectrum`.  This way we avoid quantization artifacts and
+	//	a large memory overhead per-pixel (in a more-sophisticated renderer, the pixel data would be
+	//	stored for longer, e.g. to do nontrivial reconstruction filtering), for the (small) cost of
+	//	having to do the conversion to XYZ for each sample.
 
 	CIEXYZ avg(0,0,0);
 

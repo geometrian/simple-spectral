@@ -37,7 +37,8 @@ class Spectrum final {
 			return result;
 		}
 
-		static float integrate(Spectrum const& spec);
+		static float  integrate    (Spectrum const& spec);
+		static Sample integrate_sub(Spectrum const& spec);
 		static float integrate(Spectrum const& spec0, Spectrum const& spec1);
 };
 

@@ -47,8 +47,8 @@ Spectrum::Sample sRGB_Texture::sample( glm::vec2 const& st, nm lambda_0 ) const 
 
 
 MaterialLambertianSpectral::MaterialLambertianSpectral() :
-	emission   ( std::vector<float>(size_t(2),0.0f), LAMBDA_MIN,LAMBDA_MAX ),
-	reflectance( std::vector<float>(size_t(2),1.0f), LAMBDA_MIN,LAMBDA_MAX )
+	emission   (0.0f),
+	reflectance(1.0f)
 {}
 
 
@@ -431,50 +431,50 @@ Scene* Scene::get_new_srgb        () {
 	}
 
 	{
-		//result->primitives.emplace_back(new PrimQuad(result->materials["tex"],
-		//	{ Pos( -1, -1, 0 ), glm::vec2(0,0) },
-		//	{ Pos(  1, -1, 0 ), glm::vec2(1,0) },
-		//	{ Pos(  1,  1, 0 ), glm::vec2(1,1) },
-		//	{ Pos( -1,  1, 0 ), glm::vec2(0,1) }
-		//));
+		result->primitives.emplace_back(new PrimQuad(result->materials["tex"],
+			{ Pos( -1, -1, 0 ), glm::vec2(0,0) },
+			{ Pos(  1, -1, 0 ), glm::vec2(1,0) },
+			{ Pos(  1,  1, 0 ), glm::vec2(1,1) },
+			{ Pos( -1,  1, 0 ), glm::vec2(0,1) }
+		));
 
 		float size = 10.0f;
-		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos( -size, -size, -size ), glm::vec2(0,0) },
-		//	{ Pos( -size,  size, -size ), glm::vec2(0,0) },
-		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) }
-		//));
-		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-		//	{ Pos(  size, -size, -size ), glm::vec2(0,0) },
-		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) },
-		//	{ Pos(  size,  size, -size ), glm::vec2(0,0) }
-		//));
-		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos(  size, -size, -size ), glm::vec2(0,0) },
-		//	{ Pos( -size, -size, -size ), glm::vec2(0,0) }
-		//));
-		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) },
-		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) },
-		//	{ Pos( -size,  size, -size ), glm::vec2(0,0) },
-		//	{ Pos(  size,  size, -size ), glm::vec2(0,0) }
-		//));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+			{ Pos( -size, -size, -size ), glm::vec2(0,0) },
+			{ Pos( -size,  size, -size ), glm::vec2(0,0) },
+			{ Pos( -size,  size,  size ), glm::vec2(0,0) }
+		));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
+			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+			{ Pos(  size,  size,  size ), glm::vec2(0,0) },
+			{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+		));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
+			{ Pos( -size, -size, -size ), glm::vec2(0,0) }
+		));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos(  size,  size,  size ), glm::vec2(0,0) },
+			{ Pos( -size,  size,  size ), glm::vec2(0,0) },
+			{ Pos( -size,  size, -size ), glm::vec2(0,0) },
+			{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
 			{ Pos( -size, -size, -size ), glm::vec2(0,0) },
 			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
 			{ Pos(  size,  size, -size ), glm::vec2(0,0) },
 			{ Pos( -size,  size, -size ), glm::vec2(0,0) }
 		));
-		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) },
-		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) }
-		//));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+			{ Pos( -size,  size,  size ), glm::vec2(0,0) },
+			{ Pos(  size,  size,  size ), glm::vec2(0,0) }
+		));
 	}
 
 	result->_init();

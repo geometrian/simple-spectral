@@ -59,14 +59,38 @@ Spectrum::Sample Spectrum::operator[](nm lambda_0) const {
 	return result;
 }
 
-float Spectrum::integrate(Spectrum const& spec) {
+float            Spectrum::integrate    (Spectrum const& spec) {
 	float result = 0.0f;
 	nm step = 1.0f / spec._sc;
 	nm lambda = spec._low;
 	while (lambda<=spec._high) {
-		result += spec._sample_linear(lambda);
+		result += spec._sample_nearest(lambda);
 		lambda += step;
 	}
+	return result;
+}
+Spectrum::Sample Spectrum::integrate_sub(Spectrum const& spec) {
+	Sample result(0);
+	nm step = 1.0f / spec._sc;
+
+	for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) {
+		nm low  = spec._low +  i   *LAMBDA_STEP;
+		nm high = spec._low + (i+1)*LAMBDA_STEP;
+
+		nm lambda = low;
+		if (i<SAMPLE_WAVELENGTHS-1) {
+			while (lambda< high) {
+				result[i] += spec._sample_nearest(lambda);
+				lambda += step;
+			}
+		} else {
+			while (lambda<=high) {
+				result[i] += spec._sample_nearest(lambda);
+				lambda += step;
+			}
+		}
+	}
+
 	return result;
 }
 float Spectrum::integrate(Spectrum const& spec0, Spectrum const& spec1) {

@@ -41,7 +41,7 @@
 #define LAMBDA_MAX nm(780.0f)
 #define LAMBDA_STEP ( (LAMBDA_MAX-LAMBDA_MIN) / static_cast<float>(SAMPLE_WAVELENGTHS) )
 
-#define EPS 0.001f
+#define EPS 0.00001f
 
 #if 1
 	#define CIE_OBSERVER 1931

@@ -61,9 +61,16 @@ void   init() {
 			#error
 		#endif
 
-		data->std_obs_xbar.integral = Spectrum::integrate(data->std_obs_xbar.spec);
-		data->std_obs_ybar.integral = Spectrum::integrate(data->std_obs_ybar.spec);
-		data->std_obs_zbar.integral = Spectrum::integrate(data->std_obs_zbar.spec);
+		data->std_obs_xbar.integral_sub = Spectrum::integrate_sub(data->std_obs_xbar.spec);
+		data->std_obs_ybar.integral_sub = Spectrum::integrate_sub(data->std_obs_ybar.spec);
+		data->std_obs_zbar.integral_sub = Spectrum::integrate_sub(data->std_obs_zbar.spec);
+
+		//data->std_obs_xbar.integral     = Spectrum::integrate    (data->std_obs_xbar.spec);
+		//data->std_obs_ybar.integral     = Spectrum::integrate    (data->std_obs_ybar.spec);
+		//data->std_obs_zbar.integral     = Spectrum::integrate    (data->std_obs_zbar.spec);
+		data->std_obs_xbar.integral=0.0f; for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) data->std_obs_xbar.integral+=data->std_obs_xbar.integral_sub[i];
+		data->std_obs_ybar.integral=0.0f; for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) data->std_obs_ybar.integral+=data->std_obs_ybar.integral_sub[i];
+		data->std_obs_zbar.integral=0.0f; for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) data->std_obs_zbar.integral+=data->std_obs_zbar.integral_sub[i];
 	}
 
 	{

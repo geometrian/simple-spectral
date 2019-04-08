@@ -13,6 +13,7 @@ struct Data final {
 
 	struct StandardObserver final {
 		Spectrum spec;
+		Spectrum::Sample integral_sub;
 		float integral;
 	};
 	struct StandardObserver std_obs_xbar;
@@ -46,9 +47,12 @@ inline CIEXYZ spectralsample_to_ciexyz(nm lambda_0, Spectrum::Sample const& radi
 	Spectrum::Sample ybars = data->std_obs_ybar.spec[lambda_0];
 	Spectrum::Sample zbars = data->std_obs_zbar.spec[lambda_0];
 	//Dirac-delta function integration
-	float X = glm::dot( xbars, radiant_flux ) * data->std_obs_xbar.integral;
-	float Y = glm::dot( ybars, radiant_flux ) * data->std_obs_ybar.integral;
-	float Z = glm::dot( zbars, radiant_flux ) * data->std_obs_zbar.integral;
+	//float X = glm::dot( xbars, radiant_flux ) * data->std_obs_xbar.integral;
+	//float Y = glm::dot( ybars, radiant_flux ) * data->std_obs_ybar.integral;
+	//float Z = glm::dot( zbars, radiant_flux ) * data->std_obs_zbar.integral;
+	float X = glm::dot( xbars, radiant_flux*Spectrum::Sample(20,20,20,21) );
+	float Y = glm::dot( ybars, radiant_flux*Spectrum::Sample(20,20,20,21) );
+	float Z = glm::dot( zbars, radiant_flux*Spectrum::Sample(20,20,20,21) );
 	return CIEXYZ(X,Y,Z);
 }
 
