@@ -1,0 +1,100 @@
+﻿#include "rng.hpp"
+
+#include "math-helpers.hpp"
+
+
+namespace Math {
+
+
+Dir rand_sphere(RNG& rng, float* pdf) {
+	*pdf = static_cast<float>( 1.0 / (4.0*PI<double>) );
+
+	//Pick a random z-coordinate, then pick a random point on the circle.  This works out to be
+	//	evenly sampled.
+
+	float z = 2.0f*rand_1f(rng) - 1.0f;
+	assert(z>=-1.0f&&z<=1.0f);
+	float radius_circle = std::sqrt( 1.0f - z*z );
+
+	float angle = rand_1f(rng) * static_cast<float>(2.0*PI<double>);
+
+	float c = std::cos(angle);
+	float s = std::sin(angle);
+
+	return Dir(radius_circle*c,radius_circle*s,z);
+}
+
+Dir rand_coshemi(RNG& rng, float* pdf) {
+	Dir result;
+	do {
+		float angle = rand_1f(rng) * (2.0f*PI<float>);
+		float c = std::cos(angle);
+		float s = std::sin(angle);
+
+		float radius_sq = rand_1f(rng);
+		float radius = std::sqrt(radius_sq);
+
+		result = Dir(
+			radius * c,
+			std::sqrt( 1 - radius_sq ),
+			radius * s
+		);
+		*pdf = result[1];
+	} while (*pdf<=EPS);
+	*pdf *= 1.0f / PI<float>;
+
+	return result;
+}
+
+Dir rand_toward_sphere(RNG& rng, Dir const& vec_to_sph_cen,float sph_radius, float*__restrict pdf) {
+	//Note: needs to be at least double precision.
+
+	double l = glm::length(glm::dvec3(vec_to_sph_cen));
+	if (l<static_cast<double>(sph_radius)) {
+		//We're starting inside the sphere.  Every direction hits.
+
+		return rand_sphere(rng,pdf);
+	} else {
+		//We're outside or on the sphere.
+
+		//Sample a slightly smaller sphere than the one given, just to ensure that the direction
+		//	really will hit the real sphere.
+
+		double l_recip = 1.0 / l;
+
+		double radius2 = static_cast<double>(sph_radius) * 0.99999;
+
+		double opp_over_hyp = radius2 * l_recip;
+		assert(opp_over_hyp>0.0&&opp_over_hyp<1.0);
+		double theta = std::asin(opp_over_hyp); //arcsin(r/l).  Half the vertex angle of the cone.
+
+		//Compute area on the implicit unit sphere centered at the ray origin (the spherical angle
+		//	we're sampling over, not on the explicit sphere we're throwing samples toward).
+		//	Note: cos(θ) = cos(arcsin(opp_over_hyp)) = sqrt(1-opp_over_hyp*opp_over_hyp)
+		double cos_theta = std::sqrt(1.0 - opp_over_hyp*opp_over_hyp);
+		//	Note: This formula is simply derived from the area of a spherical cap:
+		//		A = 2 π r h, where r := 1 and h = 1-cos(θ).
+		double area = (2.0*PI<double>)*( 1.0 - cos_theta );
+
+		*pdf = static_cast<float>( 1.0 / area );
+
+		//Generate random vector within cone.  this can be computed in `float`, but we might as well
+		//	continue with `double` since we have a lot of the stuff we need already . . .
+		double y = rand_1d(rng)*(1.0-cos_theta) + cos_theta;
+		assert(y>=cos_theta&&y<=1.0);
+		double phi = rand_1d(rng) * (2.0*PI<double>);
+		double radius = std::sqrt( 1.0 - y*y );
+
+		double c = std::cos(phi);
+		double s = std::sin(phi);
+		Dir result = Dir(glm::dvec3( radius*c, y, radius*s ));
+		result = get_rotated_to(
+			result,
+			vec_to_sph_cen * static_cast<float>(l_recip)
+		);
+		return result;
+	}
+}
+
+
+}

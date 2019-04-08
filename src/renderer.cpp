@@ -9,10 +9,16 @@ Renderer::Renderer(Options const& options) :
 	options(options),
 	framebuffer(options.res)
 {
-	if (options.scene_name=="cornell") {
-		scene = Scene::get_new_cornell();
+	if        (options.scene_name=="cornell"     ) {
+		scene = Scene::get_new_cornell     ();
+	} else if (options.scene_name=="cornell-srgb") {
+		scene = Scene::get_new_cornell_srgb();
+	} else if (options.scene_name=="d65sphere"   ) {
+		assert(false);
+	} else if (options.scene_name=="srgb"        ) {
+		assert(false);
 	} else {
-		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\")\n",options.scene_name.c_str());
+		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"d65sphere\", \"srgb\")\n",options.scene_name.c_str());
 		throw -3;
 	}
 
@@ -26,8 +32,11 @@ Renderer::Renderer(Options const& options) :
 	}
 	std::reverse(_tiles.begin(),_tiles.end());
 
-	//_threads.resize(1);
-	_threads.resize(std::thread::hardware_concurrency());
+	#if 0
+		_threads.resize(1);
+	#else
+		_threads.resize(std::thread::hardware_concurrency());
+	#endif
 
 	_render_continue = true;
 }
@@ -36,6 +45,8 @@ Renderer::~Renderer() {
 }
 
 CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
+	//i=256; j=430;
+
 	glm::vec2 framebuffer_st(
 		(static_cast<float>(i)+rand_1f(rng)) / static_cast<float>(framebuffer.res[0]),
 		(static_cast<float>(j)+rand_1f(rng)) / static_cast<float>(framebuffer.res[1])
@@ -49,7 +60,7 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 		camera_ray_dir = glm::normalize( Pos(point) - scene->camera.pos );
 	}
 
-	//Naïve path tracing
+	//Path tracing with explicit light sampling.
 
 	//	Hero wavelength sampling.
 	//		First, the spectrum is divided into some number of regions.  Then, the hero wavelength
@@ -59,6 +70,64 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	//			`lambda_0`.  The vector of these wavelengths are the wavelengths that the light
 	//			transport is computed along.
 
+	std::function<Spectrum::Sample(Ray const&,bool,unsigned)> L = [&](
+		Ray const& ray, bool last_was_delta, unsigned depth
+	) -> Spectrum::Sample
+	{
+		Spectrum::Sample radiance(0);
+
+		HitRecord hitrec;
+		if (scene->intersect(ray,&hitrec)) {
+			//Emission (only add if could not have been sampled on previous)
+			if (last_was_delta) {
+				Spectrum::Sample emitted_radiance = hitrec.prim->material->sample_emission(hitrec.st,lambda_0);
+
+				radiance += emitted_radiance;
+			}
+
+			if (depth<MAX_DEPTH) {
+				Pos hit_pos = ray.at(hitrec.dist);
+
+				Spectrum::Sample brdf = hitrec.prim->material->sample_brdf(hitrec.st,lambda_0);
+
+				//Direct lighting
+				{
+					Dir shad_ray_dir;
+					PrimBase const* light;
+					float shad_pdf;
+
+					scene->get_rand_toward_light(rng,hit_pos,&shad_ray_dir,&light,&shad_pdf);
+
+					Ray ray_shad = { hit_pos, shad_ray_dir };
+					HitRecord hitrec_shad;
+					scene->intersect(ray_shad,&hitrec_shad);
+					if (hitrec_shad.prim == light) {
+						Spectrum::Sample emitted_radiance = light->material->sample_emission(hitrec_shad.st,lambda_0);
+
+						radiance += emitted_radiance * glm::dot(shad_ray_dir,hitrec.normal) * brdf / shad_pdf;
+					}
+				}
+
+				//Indirect lighting
+				{
+					float pdf_dir;
+					Dir ray_next_dir = Math::rand_coshemi(rng,&pdf_dir);
+					ray_next_dir = Math::get_rotated_to(ray_next_dir,hitrec.normal);
+
+					Ray ray_next = { hit_pos, ray_next_dir };
+
+					radiance += L(ray_next,false,depth+1u) * glm::dot(ray_next_dir,hitrec.normal) * brdf / pdf_dir;
+				}
+			}
+		}
+
+		return radiance;
+	};
+
+	Ray ray_camera = { scene->camera.pos, camera_ray_dir };
+	Spectrum::Sample pixel_rad_est_infdepth = L(ray_camera,true,0u);
+
+	#if 0
 	//Value of Monte-Carlo estimator for the radiance incident on the pixel due to paths of any
 	//	length.
 	Spectrum::Sample pixel_rad_est_infdepth(0);
@@ -71,35 +140,67 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	Spectrum::Sample throughput(1);
 	Ray ray = { scene->camera.pos, camera_ray_dir };
 	float pdf = 1.0f;
+	bool last_was_delta = true;
 
 	while (depth<MAX_DEPTH) {
 		HitRecord hitrec;
 		if (!scene->intersect(ray,&hitrec)) break;
 
-		Spectrum::Sample emitted_radiance = hitrec.prim->material->sample_emission(lambda_0);
-		Spectrum::Sample brdf             = hitrec.prim->material->sample_brdf    (lambda_0);
+		//Emission (only add if could not have been sampled on previous)
+		if (false) {//(last_was_delta) {
+			Spectrum::Sample emitted_radiance = hitrec.prim->material->sample_emission(lambda_0);
 
-		//Value of Monte-Carlo estimator for the radiance incident on the pixel due to paths of
-		//	length `depth`.
-		Spectrum::Sample pixel_rad_est_currdepth = emitted_radiance * throughput / pdf;
-
-		pixel_rad_est_infdepth += pixel_rad_est_currdepth;
-
-		throughput *= brdf;
+			Spectrum::Sample pixel_rad_est_currdepth = emitted_radiance * throughput / pdf;
+			pixel_rad_est_infdepth += pixel_rad_est_currdepth;
+		}
 
 		ray.orig += ray.dir * hitrec.dist;
 
-		float pdf_dir;
-		ray.dir = rand_coshemi(rng,&pdf_dir);
-		ray.dir = Math::get_rotated_to(ray.dir,hitrec.normal);
-		pdf *= pdf_dir;
+		Spectrum::Sample brdf = hitrec.prim->material->sample_brdf(lambda_0);
+		throughput *= brdf;
 
-		break;
+		//Direct lighting
+		if (depth==6) {
+			Dir shad_ray_dir;
+			PrimBase const* light;
+			float shad_pdf;
+
+			scene->get_rand_toward_light(rng,ray.orig,&shad_ray_dir,&light,&shad_pdf);
+
+			Ray ray_shad = { ray.orig, shad_ray_dir };
+			HitRecord hitrec_shad;
+			scene->intersect(ray_shad,&hitrec_shad);
+			if (hitrec_shad.prim == light) {
+				Spectrum::Sample emitted_radiance = light->material->sample_emission(lambda_0);
+
+				//Value of Monte-Carlo estimator for the radiance incident on the pixel due to paths
+				//	of length `depth`+1.
+				Spectrum::Sample pixel_rad_est_currdepth = emitted_radiance * throughput / (pdf*shad_pdf);
+				pixel_rad_est_infdepth += pixel_rad_est_currdepth;
+			}
+		}
+
+		//Indirect lighting (iterate)
+		{
+			float pdf_dir;
+			ray.dir = Math::rand_coshemi(rng,&pdf_dir);
+			ray.dir = Math::get_rotated_to(ray.dir,hitrec.normal);
+			pdf *= pdf_dir;
+			last_was_delta = false;
+			++depth;
+		}
+
+		//break;
 	}
+	#endif
 
 	//Value of Monte-Carlo estimator for the radiant flux incident on the pixel due to paths of any
 	//	length.
-	Spectrum::Sample pixel_flux_est_infdepth = pixel_rad_est_infdepth * glm::dot( camera_ray_dir, scene->camera.dir );
+	#ifdef FLAT_FIELD_CORRECTION
+		Spectrum::Sample pixel_flux_est_infdepth = pixel_rad_est_infdepth;
+	#else
+		Spectrum::Sample pixel_flux_est_infdepth = pixel_rad_est_infdepth * glm::dot( camera_ray_dir, scene->camera.dir );
+	#endif
 
 	//Convert each wavelength sample to CIE XYZ and average.
 	CIEXYZ ciexyz_avg = Color::spectralsample_to_ciexyz( lambda_0, pixel_flux_est_infdepth );
@@ -122,7 +223,10 @@ void   Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
 	framebuffer(i,j) = sRGBA(Color::xyz_to_srgb(avg),1.0f);
 }
 void Renderer::_render_threadwork() {
+	uint32_t thread_index = _num_rendering++;
+
 	Math::RNG rng;
+	rng.seed(static_cast<Math::RNG::result_type>( get_hashed(thread_index) ));
 
 	while (_render_continue) {
 		Framebuffer::Tile tile;
@@ -149,8 +253,16 @@ void Renderer::_render_threadwork() {
 		}
 		//std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
+
+	assert(_num_rendering>0u);
+	--_num_rendering;
+
+	if (_num_rendering==0u) {
+		framebuffer.save(options.output_path);
+	}
 }
 void Renderer::render_start() {
+	_num_rendering = 0u;
 	for (std::thread*& thread : _threads) {
 		thread = new std::thread( &Renderer::_render_threadwork, this );
 	}
@@ -160,4 +272,5 @@ void Renderer::render_wait () {
 		thread->join();
 		delete thread;
 	}
+	assert(_num_rendering==0u);
 }

@@ -6,15 +6,15 @@
 #include <cstdio>
 
 //C++ Standard Library
-//#include <map>
-//#include <set>
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <functional>
 #include <fstream>
 #include <map>
 #include <mutex>
 #include <random>
+#include <set>
 #include <sstream>
 //#include <string>
 #include <thread>
@@ -43,6 +43,14 @@
 
 #define EPS 0.001f
 
+#if 1
+	#define CIE_OBSERVER 1931
+#else
+	#define CIE_OBSERVER 2006
+#endif
+
+#define FLAT_FIELD_CORRECTION
+
 
 template <typename T> constexpr T PI = T(3.14159265358979323846L); //π
 
@@ -51,6 +59,11 @@ typedef glm::vec3 CIEXYZ;
 typedef glm::vec3 lRGB;
 typedef glm::vec3 sRGB;
 typedef glm::vec4 sRGBA;
+
+struct PixelRGB8 final {
+	uint8_t r, g, b;
+};
+static_assert(sizeof(struct PixelRGB8)==3,"Implementation error!");
 
 typedef glm::vec3 Pos;
 typedef glm::vec3 Dir;
@@ -93,29 +106,40 @@ inline unsigned str_to_pos (std::string const& str) {
 	throw -2; //Not strictly positive
 }
 
-template <typename T> T lerp( T val0,T val1, float blend ) {
-	return val0*(1.0f-blend) + val1*blend;
+template <typename type> inline size_t get_hashed(type const& item) {
+	std::hash<type> hasher;
+	return hasher(item);
 }
-/*template <typename T> T clamp( T val, T low,T high ) {
-	if (val>low) {
-		if (val<high) return val;
-		else          return high;
-	} else {
-		return low;
-	}
-}*/
+template <typename type> inline size_t get_hashed(type const& item, size_t combine_with) {
+	//http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
+	return combine_with^( get_hashed(item) + 0x9E3779B9 + (combine_with<<6) + (combine_with>>2) );
+}
 
 class Ray final {
 	public:
 		Pos orig;
 		Dir dir;
+
+	public:
+		Pos at(float dist) const {
+			return orig + dist*dir;
+		}
 };
 
-class PrimitiveBase;
+class PrimBase;
 
 class HitRecord final {
 	public:
-		PrimitiveBase const* prim;
+		PrimBase const* prim;
+
 		Dir normal;
+		glm::vec2 st;
+
 		float dist;
+};
+
+class SphereBound final {
+	public:
+		Pos center;
+		float radius;
 };

@@ -84,8 +84,12 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 	};
 
 	options->scene_name = get_arg_req("--scene","-s");
-	if (options->scene_name=="cornell"); else {
-		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\")\n",options->scene_name.c_str());
+	if      (options->scene_name=="cornell"     );
+	else if (options->scene_name=="cornell-srgb");
+	else if (options->scene_name=="d65sphere"   );
+	else if (options->scene_name=="srgb"        );
+	else {
+		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"d65sphere\", \"srgb\")\n",options->scene_name.c_str());
 		throw -3;
 	}
 
@@ -126,6 +130,13 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 		}
 	}
 	#endif
+
+	if (args.size()>1) {
+		fprintf(stderr,"Warning: ignoring extraneous argument(s):\n");
+		for (size_t i=1;i<args.size();++i) {
+			fprintf(stderr,"  \"%s\"\n",args[i].c_str());
+		}
+	}
 }
 
 int main(int argc, char* argv[]) {
@@ -200,6 +211,8 @@ int main(int argc, char* argv[]) {
 	#ifdef SUPPORT_WINDOWED
 	}
 	#endif
+
+	Color::deinit();
 
 	return 0;
 }

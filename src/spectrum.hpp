@@ -13,53 +13,32 @@ class Spectrum final {
 
 		float _sc;
 
+		typedef float(Spectrum::*SpectrumSampler)(nm)const;
+		SpectrumSampler _sampler = &Spectrum::_sample_linear;
+
 	public:
 		Spectrum() = default;
-		Spectrum(std::vector<float> const& data, nm low,nm high) :
-			_data(data), _low(low),_high(high)
-		{
-			if (data.size()>=2); else {
-				fprintf(stderr,"Must have at-least two elements in sampled spectrum!\n");
-				throw -1;
-			}
-
-			_sc = static_cast<float>(data.size()-1) / (_high-_low);
-		}
+		explicit Spectrum(float data);
+		Spectrum(std::vector<float> const& data, nm low,nm high);
 		~Spectrum() = default;
 
+		void set_filter_nearest() { _sampler=&Spectrum::_sample_nearest; }
+		void set_filter_linear () { _sampler=&Spectrum::_sample_linear;  }
+
 	private:
-		float _sample_linear(nm lambda) const {
-			//This could definitely be optimized.
-
-			float i = (lambda-_low)*_sc;
-			float i0f = std::floor(i);
-			float frac = i - i0f;
-			int i0 = static_cast<int>(i0f);
-			int i1 = i0 + 1;
-
-			float val0;
-			if (i0>=0&&i0<_data.size()) {
-				val0 = _data[static_cast<size_t>(i0)];
-			} else {
-				val0 = 0.0f;
-			}
-			float val1;
-			if (i1>=0&&i1<_data.size()) {
-				val1 = _data[static_cast<size_t>(i1)];
-			} else {
-				val1 = 0.0f;
-			}
-
-			return lerp( val0,val1, frac );
-		}
+		float _sample_nearest(nm lambda) const;
+		float _sample_linear (nm lambda) const;
 	public:
-		Sample operator[](nm lambda_0) const {
-			Sample result;
-			for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) {
-				result[i] = _sample_linear(lambda_0+i*LAMBDA_STEP);
-			}
+		Sample operator[](nm lambda_0) const;
+
+		Spectrum operator*(float sc) const {
+			Spectrum result = *this;
+			for (float& f : result._data) f*=sc;
 			return result;
 		}
+
+		static float integrate(Spectrum const& spec);
+		static float integrate(Spectrum const& spec0, Spectrum const& spec1);
 };
 
 

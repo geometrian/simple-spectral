@@ -6,8 +6,6 @@
 #include "rng.hpp"
 
 
-class PrimitiveBase;
-
 class Scene;
 
 class Renderer final {
@@ -35,6 +33,7 @@ class Renderer final {
 		std::vector<Framebuffer::Tile> _tiles;
 
 		std::vector<std::thread*> _threads;
+		std::atomic<uint32_t> _num_rendering;
 
 		bool volatile _render_continue;
 
@@ -50,4 +49,6 @@ class Renderer final {
 		void render_start();
 		void render_stop () { _render_continue=false; }
 		void render_wait ();
+
+		bool is_rendering() const { return _num_rendering>0u; }
 };

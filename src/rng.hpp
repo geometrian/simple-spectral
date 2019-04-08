@@ -60,30 +60,23 @@ class RNG {
 };
 
 
-inline float rand_1f(RNG& rng) {
-	return std::uniform_real_distribution<float>()(rng);
+inline float  rand_1f(RNG& rng) {
+	return std::uniform_real_distribution<float >()(rng);
 }
-inline Dir rand_coshemi(RNG& rng, float* pdf) {
-	Dir result;
-	do {
-		float angle = rand_1f(rng) * (2.0f*PI<float>);
-		float c = std::cos(angle);
-		float s = std::sin(angle);
-
-		float radius_sq = rand_1f(rng);
-		float radius = std::sqrt(radius_sq);
-
-		result = Dir(
-			radius * c,
-			std::sqrt( 1 - radius_sq ),
-			radius * s
-		);
-		*pdf = result[1];
-	} while (*pdf<=EPS);
-	*pdf *= 1.0f / PI<float>;
-
-	return result;
+inline double rand_1d(RNG& rng) {
+	return std::uniform_real_distribution<double>()(rng);
 }
+
+inline size_t rand_choice(RNG& rng, size_t length) {
+	std::uniform_int_distribution<size_t> dist(0, length-1);
+	return dist(rng);
+}
+
+Dir rand_sphere(RNG& rng, float* pdf);
+
+Dir rand_coshemi(RNG& rng, float* pdf);
+
+Dir rand_toward_sphere(RNG& rng, Dir const& vec_to_sph_cen,float sph_radius, float*__restrict pdf);
 
 
 }

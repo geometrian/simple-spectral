@@ -28,18 +28,30 @@ if (SUPPORT_WINDOWED)
 	message(STATUS "GLFW3 at ${GLFW3_INCLUDE_DIR}")
 	include_directories(${GLFW3_INCLUDE_DIR} )
 	set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} ${GLFW3_LIBRARY})
+
+	set(WINDOW_ARG " --window")
+else (SUPPORT_WINDOWED)
+	set(WINDOW_ARG "")
 endif (SUPPORT_WINDOWED)
+#message(STATUS "${WINDOW_ARG}")
 
-file(GLOB_RECURSE HEADER_FILES
-	${CMAKE_SOURCE_DIR}/src/*.hpp)
-file(GLOB_RECURSE SOURCE_FILES
-	${CMAKE_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.hpp* ${CMAKE_SOURCE_DIR}/src/*.h* ${CMAKE_SOURCE_DIR}/src/*.cpp*)
 
-add_executable(${PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES})
+add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+
+foreach(_source_file IN ITEMS ${SOURCE_FILES})
+	get_filename_component(_source_path "${_source_file}" PATH)
+	string(REPLACE "${CMAKE_SOURCE_DIR}" "" _group_path "${_source_path}")
+	string(REPLACE "/" "\\" _group_path "${_group_path}")
+	source_group("${_group_path}" FILES "${_source_file}")
+endforeach()
 
 #set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}${PROJECT_NAME}" )
 set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_COMMAND_ARGUMENTS
-	"--scene=cornell -w=512 -h=512 -spp=1 --output=output.png --window"
+	"--scene=cornell -w=512 -h=512 -spp=1 --output=output.png${WINDOW_ARG}"
+)
+set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY
+	"${CMAKE_SOURCE_DIR}"
 )
 
 target_link_libraries(${PROJECT_NAME} ${EXTERNAL_LIBRARIES})
