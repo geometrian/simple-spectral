@@ -396,6 +396,91 @@ Scene* Scene::get_new_cornell_srgb() {
 
 	return result;
 }
+Scene* Scene::get_new_srgb        () {
+	Scene* result = new Scene;
+
+	{
+		result->camera.pos = Pos(0,0,5);
+		//result->camera.pos = Pos(50,30,20);
+		result->camera.dir = glm::normalize(Pos(0)-result->camera.pos);
+		result->camera.up  = Dir(0,1,0);
+
+		result->camera.res[0] = 512;
+		result->camera.res[1] = 512;
+		result->camera.near=0.1f; result->camera.far=1.0f;
+		result->camera.fov = glm::degrees(2.0f*std::atan2( 1.0f, result->camera.pos.z ));
+		//result->camera.fov = 45.0f;
+	}
+
+	{
+		MaterialLambertianSpectral* white_d65 = new MaterialLambertianSpectral;
+		white_d65->reflectance = Spectrum(0.0f);
+		white_d65->emission = Color::data->D65;// * 0.5f;
+		white_d65->emission.set_filter_nearest();
+		result->materials["light"] = white_d65;
+
+		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png");
+		Color::data->basis_bt709.r.set_filter_nearest();
+		Color::data->basis_bt709.g.set_filter_nearest();
+		Color::data->basis_bt709.b.set_filter_nearest();
+		result->materials["tex"] = mtl_tex;
+
+		Color::data->std_obs_xbar.spec.set_filter_nearest();
+		Color::data->std_obs_ybar.spec.set_filter_nearest();
+		Color::data->std_obs_zbar.spec.set_filter_nearest();
+	}
+
+	{
+		//result->primitives.emplace_back(new PrimQuad(result->materials["tex"],
+		//	{ Pos( -1, -1, 0 ), glm::vec2(0,0) },
+		//	{ Pos(  1, -1, 0 ), glm::vec2(1,0) },
+		//	{ Pos(  1,  1, 0 ), glm::vec2(1,1) },
+		//	{ Pos( -1,  1, 0 ), glm::vec2(0,1) }
+		//));
+
+		float size = 10.0f;
+		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos( -size, -size, -size ), glm::vec2(0,0) },
+		//	{ Pos( -size,  size, -size ), glm::vec2(0,0) },
+		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) }
+		//));
+		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+		//	{ Pos(  size, -size, -size ), glm::vec2(0,0) },
+		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) },
+		//	{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+		//));
+		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos(  size, -size, -size ), glm::vec2(0,0) },
+		//	{ Pos( -size, -size, -size ), glm::vec2(0,0) }
+		//));
+		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) },
+		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) },
+		//	{ Pos( -size,  size, -size ), glm::vec2(0,0) },
+		//	{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+		//));
+		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+			{ Pos( -size, -size, -size ), glm::vec2(0,0) },
+			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
+			{ Pos(  size,  size, -size ), glm::vec2(0,0) },
+			{ Pos( -size,  size, -size ), glm::vec2(0,0) }
+		));
+		//result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+		//	{ Pos(  size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos( -size, -size,  size ), glm::vec2(0,0) },
+		//	{ Pos( -size,  size,  size ), glm::vec2(0,0) },
+		//	{ Pos(  size,  size,  size ), glm::vec2(0,0) }
+		//));
+	}
+
+	result->_init();
+
+	return result;
+}
 
 void Scene::get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,PrimBase const** light,float* pdf ) {
 	*light = lights[ rand_choice(rng,lights.size()) ];

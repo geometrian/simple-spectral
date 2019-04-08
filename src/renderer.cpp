@@ -16,7 +16,7 @@ Renderer::Renderer(Options const& options) :
 	} else if (options.scene_name=="d65sphere"   ) {
 		assert(false);
 	} else if (options.scene_name=="srgb"        ) {
-		assert(false);
+		scene = Scene::get_new_srgb        ();
 	} else {
 		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"d65sphere\", \"srgb\")\n",options.scene_name.c_str());
 		throw -3;

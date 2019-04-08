@@ -194,6 +194,7 @@ class Scene final {
 	public:
 		static Scene* get_new_cornell     ();
 		static Scene* get_new_cornell_srgb();
+		static Scene* get_new_srgb        ();
 
 		void get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,PrimBase const** light,float* pdf );
 
