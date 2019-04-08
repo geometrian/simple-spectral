@@ -61,6 +61,7 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	}
 
 	//Path tracing with explicit light sampling.
+	//#define EXPLICIT_LIGHT_SAMPLING
 
 	//	Hero wavelength sampling.
 	//		First, the spectrum is divided into some number of regions.  Then, the hero wavelength
@@ -78,18 +79,24 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 
 		HitRecord hitrec;
 		if (scene->intersect(ray,&hitrec)) {
-			//Emission (only add if could not have been sampled on previous)
+			//Emission
+			#ifdef EXPLICIT_LIGHT_SAMPLING
+			//Only add if could not have been sampled on previous)
 			if (last_was_delta) {
+			#endif
 				Spectrum::Sample emitted_radiance = hitrec.prim->material->sample_emission(hitrec.st,lambda_0);
 
 				radiance += emitted_radiance;
+			#ifdef EXPLICIT_LIGHT_SAMPLING
 			}
+			#endif
 
 			if (depth<MAX_DEPTH) {
 				Pos hit_pos = ray.at(hitrec.dist);
 
 				Spectrum::Sample brdf = hitrec.prim->material->sample_brdf(hitrec.st,lambda_0);
 
+				#ifdef EXPLICIT_LIGHT_SAMPLING
 				//Direct lighting
 				{
 					Dir shad_ray_dir;
@@ -97,26 +104,32 @@ CIEXYZ Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 					float shad_pdf;
 
 					scene->get_rand_toward_light(rng,hit_pos,&shad_ray_dir,&light,&shad_pdf);
+					float n_dot_l = glm::dot(shad_ray_dir,hitrec.normal);
+					if (n_dot_l>0.0f) {
+						Ray ray_shad = { hit_pos, shad_ray_dir };
+						HitRecord hitrec_shad;
+						scene->intersect(ray_shad,&hitrec_shad);
+						if (hitrec_shad.prim == light) {
+							Spectrum::Sample emitted_radiance = light->material->sample_emission(hitrec_shad.st,lambda_0);
 
-					Ray ray_shad = { hit_pos, shad_ray_dir };
-					HitRecord hitrec_shad;
-					scene->intersect(ray_shad,&hitrec_shad);
-					if (hitrec_shad.prim == light) {
-						Spectrum::Sample emitted_radiance = light->material->sample_emission(hitrec_shad.st,lambda_0);
-
-						radiance += emitted_radiance * glm::dot(shad_ray_dir,hitrec.normal) * brdf / shad_pdf;
+							radiance += emitted_radiance * n_dot_l * brdf / shad_pdf;
+						}
 					}
 				}
+				#endif
 
 				//Indirect lighting
-				{
+				if (glm::dot(brdf,brdf)>0.0f) {
 					float pdf_dir;
 					Dir ray_next_dir = Math::rand_coshemi(rng,&pdf_dir);
 					ray_next_dir = Math::get_rotated_to(ray_next_dir,hitrec.normal);
 
 					Ray ray_next = { hit_pos, ray_next_dir };
 
-					radiance += L(ray_next,false,depth+1u) * glm::dot(ray_next_dir,hitrec.normal) * brdf / pdf_dir;
+					float n_dot_l = glm::dot(ray_next_dir,hitrec.normal);
+					if (n_dot_l>0.0f) {
+						radiance += L(ray_next,false,depth+1u) * n_dot_l * brdf / pdf_dir;
+					}
 				}
 			}
 		}

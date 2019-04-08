@@ -405,6 +405,8 @@ void Scene::get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,Prim
 	Dir vec_to_sph_cen = bound.center - from;
 
 	*dir = Math::rand_toward_sphere( rng, vec_to_sph_cen,bound.radius, pdf );
+
+	*pdf /= static_cast<float>(lights.size());
 }
 
 bool Scene::intersect(Ray const& ray, HitRecord* hitrec) const {
