@@ -2,9 +2,12 @@
 
 #include "stdafx.hpp"
 
-#include "color.hpp"
+#include "util/color.hpp"
+#include "util/string.hpp"
+
 #include "framebuffer.hpp"
 #include "renderer.hpp"
+
 
 
 #ifdef SUPPORT_WINDOWED
@@ -56,8 +59,8 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 	auto get_arg     = [&](std::string const& name, std::string const& shortname="") -> std::string {
 		for (auto iter=args.begin(); iter!=args.end(); ++iter) {
 			std::string const& arg = *iter;
-			if (str_contains(arg,"=")) {
-				std::vector<std::string> components = str_split(arg,"=",1);
+			if (Str::contains(arg,"=")) {
+				std::vector<std::string> components = Str::split(arg,"=",1);
 
 				if ( components[0]!=name && components[0]!=shortname );
 				else {
@@ -97,8 +100,8 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 	strs_res[0] = get_arg_req("--width", "-w");
 	strs_res[1] = get_arg_req("--height","-h");
 	try {
-		options->res[0] = str_to_pos(strs_res[0]);
-		options->res[1] = str_to_pos(strs_res[1]);
+		options->res[0] = Str::to_pos(strs_res[0]);
+		options->res[1] = Str::to_pos(strs_res[1]);
 	} catch (int) {
 		fprintf(stderr,"Invalid width or height!\n");
 		throw;
@@ -106,7 +109,7 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 
 	std::string str_spp = get_arg_req("--samples", "-spp");
 	try {
-		options->spp = str_to_pos(str_spp);
+		options->spp = Str::to_pos(str_spp);
 	} catch (int) {
 		fprintf(stderr,"Invalid number of samples!\n");
 		throw;
@@ -140,6 +143,7 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 }
 
 int main(int argc, char* argv[]) {
+	//Attempt to parse arguments for render
 	Renderer::Options options;
 	try {
 		_parse_arguments( argv,static_cast<size_t>(argc), &options );
@@ -148,49 +152,56 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
+	//Initialize color data as-necessary
 	Color::init();
 
+	//Create renderer
 	Renderer renderer(options);
 	#ifdef SUPPORT_WINDOWED
 	if (options.open_window) {
+		//Set up window and rendering parameters
 		GLFWwindow* window;
+		{
+			#ifdef _DEBUG
+				glfwSetErrorCallback(_callback_err_glfw);
+			#endif
 
-		#ifdef _DEBUG
-			glfwSetErrorCallback(_callback_err_glfw);
-		#endif
+			glfwInit();
 
-		glfwInit();
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+			#ifdef _DEBUG
+				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+			#endif
 
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-		#ifdef _DEBUG
-			glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-		#endif
+			glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-		glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+			glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
 
-		glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+			window = glfwCreateWindow(
+				static_cast<int>(options.res[0]), static_cast<int>(options.res[1]),
+				"simple-spectral",
+				nullptr,
+				nullptr
+			);
 
-		window = glfwCreateWindow(
-			static_cast<int>(options.res[0]), static_cast<int>(options.res[1]),
-			"simple-spectral",
-			nullptr,
-			nullptr
-		);
+			glfwSetKeyCallback(window, _callback_key);
 
-		glfwSetKeyCallback(window, _callback_key);
+			glfwMakeContextCurrent(window);
+			#ifdef _DEBUG
+				//glDebugMessageCallback(callback_err_gl,nullptr);
+			#endif
 
-		glfwMakeContextCurrent(window);
-		#ifdef _DEBUG
-			//glDebugMessageCallback(callback_err_gl,nullptr);
-		#endif
+			//glfwSwapInterval(0);
 
-		//glfwSwapInterval(0);
+			glEnable(GL_BLEND);
+			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+		}
 
-		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
-
+		//Start rendering
 		renderer.render_start();
+
+		//Display loop for the ongoing or completed render
 		while (!glfwWindowShouldClose(window)) {
 			glfwPollEvents();
 
@@ -198,21 +209,29 @@ int main(int argc, char* argv[]) {
 
 			glfwSwapBuffers(window);
 		}
+
+		//Stop the renderer if it hasn't been already.
 		renderer.render_stop();
 		renderer.render_wait();
 
+		//Clean up
 		glfwDestroyWindow(window);
 
 		glfwTerminate();
 	} else {
 	#endif
+		//Start rendering
 		renderer.render_start();
+
+		//Wait for completion
 		renderer.render_wait ();
 	#ifdef SUPPORT_WINDOWED
 	}
 	#endif
 
+	//Clean up color data as-necessary
 	Color::deinit();
 
+	//Return to OS
 	return 0;
 }

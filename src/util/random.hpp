@@ -1,9 +1,13 @@
 ﻿#pragma once
 
-#include "stdafx.hpp"
+#include "../stdafx.hpp"
+
+#include "spherical-tri.hpp"
+
 
 
 namespace Math {
+
 
 
 //PCG-32
@@ -60,6 +64,7 @@ class RNG {
 };
 
 
+
 inline float  rand_1f(RNG& rng) {
 	return std::uniform_real_distribution<float >()(rng);
 }
@@ -77,6 +82,9 @@ Dir rand_sphere(RNG& rng, float* pdf);
 Dir rand_coshemi(RNG& rng, float* pdf);
 
 Dir rand_toward_sphere(RNG& rng, Dir const& vec_to_sph_cen,float sph_radius, float*__restrict pdf);
+
+Dir rand_toward_sphericaltri(RNG& rng, SphericalTriangle const& tri);
+
 
 
 }

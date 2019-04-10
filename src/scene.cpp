@@ -1,11 +1,12 @@
-#include "scene.hpp"
+﻿#include "scene.hpp"
 
-#include "lodepng/lodepng.h"
+#include "util/lodepng/lodepng.h"
+#include "util/color.hpp"
 
-#include "color.hpp"
 
 
-sRGB_Texture::sRGB_Texture(std::string const& path) {
+sRGB_ReflectanceTexture::sRGB_ReflectanceTexture(std::string const& path) {
+	//Load data from file
 	std::vector<unsigned char> out;
 	unsigned w, h;
 	lodepng::decode( out, w,h, path, LCT_RGB );
@@ -14,48 +15,62 @@ sRGB_Texture::sRGB_Texture(std::string const& path) {
 		throw -1;
 	}
 
+	//Set resolution
 	res[0] = w;
 	res[1] = h;
-	_data = new PixelRGB8[res[1]*res[0]];
+
+	//Allocate pixels
+	_data = new sRGB_U8[res[1]*res[0]];
+
+	//Copy loaded data into pixels
 	memcpy(_data,out.data(),3*res[1]*res[0]);
 }
-sRGB_Texture::~sRGB_Texture() {
+sRGB_ReflectanceTexture::~sRGB_ReflectanceTexture() {
+	//Clean up pixel data
 	delete[] _data;
 }
 
-Spectrum::Sample sRGB_Texture::sample( size_t i,size_t j,   nm lambda_0 ) const {
-	PixelRGB8 const& srgb_u8 = _data[j*res[0]+i];
-	sRGB srgb = sRGB(srgb_u8.r,srgb_u8.g,srgb_u8.b)*(1.0f/255.0f);
-	lRGB lrgb = Color::srgb_to_lrgb(srgb);
-	return Color::lrgb_to_spectralsample(lrgb,lambda_0);
+SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( size_t i,size_t j, nm lambda_0 ) const {
+	//Load sRGB data and convert to floating-point.
+	sRGB_U8 const& srgb_u8 = _data[j*res[0]+i];
+	sRGB_F32 srgb = sRGB_F32(srgb_u8.r,srgb_u8.g,srgb_u8.b)*(1.0f/255.0f);
+
+	//Undo the gamma transform to get ℓRGB.
+	lRGB_F32 lrgb = Color::srgb_to_lrgb(srgb);
+
+	//Sample the reflection spectrum defined by this ℓRGB triple.
+	return Color::lrgb_to_specrefl(lrgb,lambda_0);
 }
-Spectrum::Sample sRGB_Texture::sample( glm::vec2 const& st, nm lambda_0 ) const {
+SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( ST const& st,      nm lambda_0 ) const {
 	#if 1
-		glm::vec2 uv(
-			      st.x  * static_cast<float>(res[0]),
-			(1.0f-st.y) * static_cast<float>(res[1])
+		//Convert from ST space to UV space.
+		UV uv = st * glm::vec2(res[0],res[1]);
+
+		//Convert from UV space to index space
+		glm::vec2 index = glm::vec2(
+			           uv.x,
+			res[1]-1 - uv.y
 		);
-		int u = static_cast<int>(std::floor(uv.x));
-		int v = static_cast<int>(std::floor(uv.y));
-		u = glm::clamp( u, 0,static_cast<int>(res[0]-1) );
-		v = glm::clamp( v, 0,static_cast<int>(res[1]-1) );
-		return sample( static_cast<size_t>(u),static_cast<size_t>(v), lambda_0 );
+
+		//Convert to integer (clamped nearest-neighbor sample)
+		int i = static_cast<int>(std::floor(index.x));
+		int j = static_cast<int>(std::floor(index.y));
+		i = glm::clamp( i, 0,static_cast<int>(res[0]-1) );
+		j = glm::clamp( j, 0,static_cast<int>(res[1]-1) );
+
+		//Sample the texture
+		return sample( static_cast<size_t>(i),static_cast<size_t>(j), lambda_0 );
 	#else
-		return Color::lrgb_to_spectralsample(lRGB(st,0),lambda_0);
+		//Return the ST coordinates as a spectral reflectance.
+		return Color::lrgb_to_specrefl(lRGB_F32(st,0),lambda_0);
 	#endif
 }
 
 
-MaterialLambertianSpectral::MaterialLambertianSpectral() :
-	emission   (0.0f),
-	reflectance(1.0f)
-{}
-
 
 bool PrimTri:: intersect(Ray const& ray, HitRecord* hitrec) const /*override*/ {
-	//Robust intersection:
+	//Robust ray-triangle intersection.  See:
 	//	http://jcgt.org/published/0002/01/05/paper.pdf
-	//	TODO: vectorize!
 
 	//Dimension where the ray direction is maximal
 	Dir abs_dir = glm::abs(ray.dir);
@@ -127,21 +142,18 @@ bool PrimTri:: intersect(Ray const& ray, HitRecord* hitrec) const /*override*/ {
 
 	//Normalize U, V, W, and T, then return
 	float det_recip = 1 / det;
-	float dist = T * det_recip;
+	Dist dist = T * det_recip;
 	assert(!std::isnan(dist));
-	if (dist>=EPS) {
-		if (dist>=hitrec->dist);
-		else {
-			hitrec->prim   = this;
+	if (dist>=EPS && dist<hitrec->dist) {
+		hitrec->prim   = this;
 
-			hitrec->normal = normal;
-			glm::vec3 bary = UVW * det_recip;
-			hitrec->st = bary.x*verts[0].st + bary.y*verts[1].st + bary.z*verts[2].st;
+		glm::vec3 bary = UVW * det_recip;
+		hitrec->normal = normal;
+		hitrec->st     = bary.x*verts[0].st + bary.y*verts[1].st + bary.z*verts[2].st;
 
-			hitrec->dist   = dist;
+		hitrec->dist   = dist;
 
-			return true;
-		}
+		return true;
 	}
 
 	return false;
@@ -159,11 +171,14 @@ bool PrimQuad::intersect(Ray const& ray, HitRecord* hitrec) const /*override*/ {
 }
 
 
+
 Scene::~Scene() {
 	for (auto iter : materials) delete iter.second;
 
 	for (PrimBase const* iter : primitives) delete iter;
 }
+
+//TODO: comment
 
 void Scene::_init() {
 	camera.matr_P = glm::perspectiveFov(
@@ -178,20 +193,6 @@ void Scene::_init() {
 		if (prim->is_light) lights.emplace_back(prim);
 	}
 	assert(!lights.empty());
-
-	/*{
-		std::vector<Pos> vertices;
-		for (PrimBase const* prim : lights) prim->add_vertices(vertices);
-
-		Pos avg(0);
-		for (Pos const& pos : vertices) avg+=pos;
-		avg /= static_cast<float>(vertices.size());
-		_lights_bound.center = avg;
-
-		float max_dist = 0.0f;
-		for (Pos const& pos : vertices) max_dist=std::max(max_dist,glm::length(pos-avg));
-		_lights_bound.radius = max_dist;
-	}*/
 }
 Scene* Scene::get_new_cornell     () {
 	//http://www.graphics.cornell.edu/online/box/data.html
@@ -216,8 +217,8 @@ Scene* Scene::get_new_cornell     () {
 		if (data.size()==3); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
 
 		MaterialLambertianSpectral* white_back = new MaterialLambertianSpectral;
-		white_back->reflectance = Spectrum( data[0], 400,700 );
-		//white_back->reflectance = Spectrum( 1.0f );
+		white_back->reflectance = SpectralReflectance( data[0], 400,700 );
+		//white_back->reflectance = SpectralReflectance( 1.0f );
 		result->materials["white-back"] = white_back;
 
 		MaterialLambertianSpectral* white_blocks = new MaterialLambertianSpectral(*white_back);
@@ -227,11 +228,11 @@ Scene* Scene::get_new_cornell     () {
 		result->materials["white-floorceil"] = white_floorceil;
 
 		MaterialLambertianSpectral* green = new MaterialLambertianSpectral;
-		green->reflectance = Spectrum( data[1], 400,700 );
+		green->reflectance = SpectralReflectance( data[1], 400,700 );
 		result->materials["green"] = green;
 
 		MaterialLambertianSpectral* red   = new MaterialLambertianSpectral;
-		red->  reflectance = Spectrum( data[2], 400,700 );
+		red->  reflectance = SpectralReflectance( data[2], 400,700 );
 		result->materials["red"  ] = red;
 	}
 
@@ -240,10 +241,10 @@ Scene* Scene::get_new_cornell     () {
 		if (data.size()==1); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
 
 		MaterialLambertianSpectral* light = new MaterialLambertianSpectral;
-		light->emission    = Spectrum( data[0], 400,700 ) * 200;
-		//light->emission    = Color::data->D65 * 0.5f;
-		//light->emission    = Color::data->D65 * 5.0f;
-		light->reflectance = Spectrum( 0.78f );
+		light->emission    = SpectralRadiance( data[0], 400,700 ) * 200;
+		//light->emission    = Color::data->D65_rad * 0.5f;
+		//light->emission    = Color::data->D65_rad * 5.0f;
+		light->reflectance = SpectralReflectance( 0.78f );
 		result->materials["light"] = light;
 	}
 
@@ -257,114 +258,177 @@ Scene* Scene::get_new_cornell     () {
 	{
 		//Floor
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
-			{ Pos( 552.8f, 0.0f,   0.0f ), glm::vec2(1,0) },
-			{ Pos(   0.0f, 0.0f,   0.0f ), glm::vec2(0,0) },
-			{ Pos(   0.0f, 0.0f, 559.2f ), glm::vec2(0,1) },
-			{ Pos( 549.6f, 0.0f, 559.2f ), glm::vec2(1,1) }
+			{ Pos( 552.8f, 0.0f,   0.0f ), ST(1,0) },
+			{ Pos(   0.0f, 0.0f,   0.0f ), ST(0,0) },
+			{ Pos(   0.0f, 0.0f, 559.2f ), ST(0,1) },
+			{ Pos( 549.6f, 0.0f, 559.2f ), ST(1,1) }
 		));
 
-		//Light (note moved down 0.1 so not on ceiling)
-		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos( 343.0f, 548.7f, 227.0f ), glm::vec2(1,0) },
-			{ Pos( 343.0f, 548.7f, 332.0f ), glm::vec2(1,1) },
-			{ Pos( 213.0f, 548.7f, 332.0f ), glm::vec2(0,1) },
-			{ Pos( 213.0f, 548.7f, 227.0f ), glm::vec2(0,0) }
-		));
+		#if 0
+			//Shift the light downward a bit
 
-		//Ceiling
-		result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
-			{ Pos( 556.0f, 548.8f,   0.0f ), glm::vec2(1,0) },
-			{ Pos( 556.0f, 548.8f, 559.2f ), glm::vec2(1,1) },
-			{ Pos(   0.0f, 548.8f, 559.2f ), glm::vec2(0,1) },
-			{ Pos(   0.0f, 548.8f,   0.0f ), glm::vec2(0,0) }
-		));
+			//Light (note moved down 0.1 so not on ceiling)
+			result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+				{ Pos( 343.0f, 548.7f, 227.0f ), ST(1,0) },
+				{ Pos( 343.0f, 548.7f, 332.0f ), ST(1,1) },
+				{ Pos( 213.0f, 548.7f, 332.0f ), ST(0,1) },
+				{ Pos( 213.0f, 548.7f, 227.0f ), ST(0,0) }
+			));
+
+			//Ceiling
+			result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
+				{ Pos( 556.0f, 548.8f,   0.0f ), ST(1,0) },
+				{ Pos( 556.0f, 548.8f, 559.2f ), ST(1,1) },
+				{ Pos(   0.0f, 548.8f, 559.2f ), ST(0,1) },
+				{ Pos(   0.0f, 548.8f,   0.0f ), ST(0,0) }
+			));
+		#else
+			/*
+			Actually cut a hole in the ceiling for the light:
+
+				A-------B    Left <-----+
+				| E---F |               |
+				| |   | |               |
+				| G---H |               v
+				C-------D             Front
+			*/
+
+			Pos A = Pos(   0.0f, 548.8f, 559.2f );
+			Pos B = Pos( 556.0f, 548.8f, 559.2f );
+			Pos C = Pos(   0.0f, 548.8f,   0.0f );
+			Pos D = Pos( 556.0f, 548.8f,   0.0f );
+			Pos E = Pos( 213.0f, 548.8f, 332.0f );
+			Pos F = Pos( 343.0f, 548.8f, 332.0f );
+			Pos G = Pos( 213.0f, 548.8f, 227.0f );
+			Pos H = Pos( 343.0f, 548.8f, 227.0f );
+
+			/*
+			This reduces variance for explicit light sampling significantly because rays can't get
+			onto the ceiling behind the light and sample the large solid angle (near-hemisphere)
+			toward it.
+			*/
+
+			//Light (H,F,E,G)
+			result->primitives.emplace_back(new PrimQuad(result->materials["light"],
+				{ H, ST(1,0) },
+				{ F, ST(1,1) },
+				{ E, ST(0,1) },
+				{ G, ST(0,0) }
+			));
+
+			//Ceiling
+			result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
+				{ D, ST(0,0) },
+				{ B, ST(0,0) },
+				{ F, ST(0,0) },
+				{ H, ST(0,0) }
+			));
+			result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
+				{ B, ST(0,0) },
+				{ A, ST(0,0) },
+				{ E, ST(0,0) },
+				{ F, ST(0,0) }
+			));
+			result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
+				{ A, ST(0,0) },
+				{ C, ST(0,0) },
+				{ G, ST(0,0) },
+				{ E, ST(0,0) }
+			));
+			result->primitives.emplace_back(new PrimQuad(result->materials["white-floorceil"],
+				{ C, ST(0,0) },
+				{ D, ST(0,0) },
+				{ H, ST(0,0) },
+				{ G, ST(0,0) }
+			));
+		#endif
 
 		//Back wall
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-back"],
-			{ Pos( 549.6f,   0.0f, 559.2f ), glm::vec2(1,0) },
-			{ Pos(   0.0f,   0.0f, 559.2f ), glm::vec2(0,0) },
-			{ Pos(   0.0f, 548.8f, 559.2f ), glm::vec2(0,1) },
-			{ Pos( 556.0f, 548.8f, 559.2f ), glm::vec2(1,1) }
+			{ Pos( 549.6f,   0.0f, 559.2f ), ST(0,0) },
+			{ Pos(   0.0f,   0.0f, 559.2f ), ST(1,0) },
+			{ Pos(   0.0f, 548.8f, 559.2f ), ST(1,1) },
+			{ Pos( 556.0f, 548.8f, 559.2f ), ST(0,1) }
 		));
 
 		//Right wall
 		result->primitives.emplace_back(new PrimQuad(result->materials["green"],
-			{ Pos( 0.0f,   0.0f, 559.2f ), glm::vec2(1,0) },
-			{ Pos( 0.0f,   0.0f,   0.0f ), glm::vec2(0,0) },
-			{ Pos( 0.0f, 548.8f,   0.0f ), glm::vec2(0,1) },
-			{ Pos( 0.0f, 548.8f, 559.2f ), glm::vec2(1,1) }
+			{ Pos( 0.0f,   0.0f, 559.2f ), ST(1,0) },
+			{ Pos( 0.0f,   0.0f,   0.0f ), ST(0,0) },
+			{ Pos( 0.0f, 548.8f,   0.0f ), ST(0,1) },
+			{ Pos( 0.0f, 548.8f, 559.2f ), ST(1,1) }
 		));
 
 		//Left wall
 		result->primitives.emplace_back(new PrimQuad(result->materials["red"  ],
-			{ Pos( 552.8f,   0.0f,   0.0f ), glm::vec2(0,0) },
-			{ Pos( 549.6f,   0.0f, 559.2f ), glm::vec2(0,1) },
-			{ Pos( 556.0f, 548.8f, 559.2f ), glm::vec2(1,1) },
-			{ Pos( 556.0f, 548.8f,   0.0f ), glm::vec2(1,0) }
+			{ Pos( 552.8f,   0.0f,   0.0f ), ST(0,0) },
+			{ Pos( 549.6f,   0.0f, 559.2f ), ST(1,0) },
+			{ Pos( 556.0f, 548.8f, 559.2f ), ST(1,1) },
+			{ Pos( 556.0f, 548.8f,   0.0f ), ST(0,1) }
 		));
 
 		//Short block
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 130.0f, 165.0f,  65.0f ), glm::vec2(0,0) },
-			{ Pos(  82.0f, 165.0f, 225.0f ), glm::vec2(0,0) },
-			{ Pos( 240.0f, 165.0f, 272.0f ), glm::vec2(0,0) },
-			{ Pos( 290.0f, 165.0f, 114.0f ), glm::vec2(0,0) }
+			{ Pos( 130.0f, 165.0f,  65.0f ), ST(0,0) },
+			{ Pos(  82.0f, 165.0f, 225.0f ), ST(0,0) },
+			{ Pos( 240.0f, 165.0f, 272.0f ), ST(0,0) },
+			{ Pos( 290.0f, 165.0f, 114.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 290.0f,   0.0f, 114.0f ), glm::vec2(0,0) },
-			{ Pos( 290.0f, 165.0f, 114.0f ), glm::vec2(0,0) },
-			{ Pos( 240.0f, 165.0f, 272.0f ), glm::vec2(0,0) },
-			{ Pos( 240.0f,   0.0f, 272.0f ), glm::vec2(0,0) }
+			{ Pos( 290.0f,   0.0f, 114.0f ), ST(0,0) },
+			{ Pos( 290.0f, 165.0f, 114.0f ), ST(0,0) },
+			{ Pos( 240.0f, 165.0f, 272.0f ), ST(0,0) },
+			{ Pos( 240.0f,   0.0f, 272.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 130.0f,   0.0f,  65.0f ), glm::vec2(0,0) },
-			{ Pos( 130.0f, 165.0f,  65.0f ), glm::vec2(0,0) },
-			{ Pos( 290.0f, 165.0f, 114.0f ), glm::vec2(0,0) },
-			{ Pos( 290.0f,   0.0f, 114.0f ), glm::vec2(0,0) }
+			{ Pos( 130.0f,   0.0f,  65.0f ), ST(0,0) },
+			{ Pos( 130.0f, 165.0f,  65.0f ), ST(0,0) },
+			{ Pos( 290.0f, 165.0f, 114.0f ), ST(0,0) },
+			{ Pos( 290.0f,   0.0f, 114.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos(  82.0f,   0.0f, 225.0f ), glm::vec2(0,0) },
-			{ Pos(  82.0f, 165.0f, 225.0f ), glm::vec2(0,0) },
-			{ Pos( 130.0f, 165.0f,  65.0f ), glm::vec2(0,0) },
-			{ Pos( 130.0f,   0.0f,  65.0f ), glm::vec2(0,0) }
+			{ Pos(  82.0f,   0.0f, 225.0f ), ST(0,0) },
+			{ Pos(  82.0f, 165.0f, 225.0f ), ST(0,0) },
+			{ Pos( 130.0f, 165.0f,  65.0f ), ST(0,0) },
+			{ Pos( 130.0f,   0.0f,  65.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 240.0f,   0.0f, 272.0f ), glm::vec2(0,0) },
-			{ Pos( 240.0f, 165.0f, 272.0f ), glm::vec2(0,0) },
-			{ Pos(  82.0f, 165.0f, 225.0f ), glm::vec2(0,0) },
-			{ Pos(  82.0f,   0.0f, 225.0f ), glm::vec2(0,0) }
+			{ Pos( 240.0f,   0.0f, 272.0f ), ST(0,0) },
+			{ Pos( 240.0f, 165.0f, 272.0f ), ST(0,0) },
+			{ Pos(  82.0f, 165.0f, 225.0f ), ST(0,0) },
+			{ Pos(  82.0f,   0.0f, 225.0f ), ST(0,0) }
 		));
 
 		//Tall block
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 423.0f, 330.0f, 247.0f ), glm::vec2(0,0) },
-			{ Pos( 265.0f, 330.0f, 296.0f ), glm::vec2(0,0) },
-			{ Pos( 314.0f, 330.0f, 456.0f ), glm::vec2(0,0) },
-			{ Pos( 472.0f, 330.0f, 406.0f ), glm::vec2(0,0) }
+			{ Pos( 423.0f, 330.0f, 247.0f ), ST(0,0) },
+			{ Pos( 265.0f, 330.0f, 296.0f ), ST(0,0) },
+			{ Pos( 314.0f, 330.0f, 456.0f ), ST(0,0) },
+			{ Pos( 472.0f, 330.0f, 406.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 423.0f,   0.0f, 247.0f ), glm::vec2(0,0) },
-			{ Pos( 423.0f, 330.0f, 247.0f ), glm::vec2(0,0) },
-			{ Pos( 472.0f, 330.0f, 406.0f ), glm::vec2(0,0) },
-			{ Pos( 472.0f,   0.0f, 406.0f ), glm::vec2(0,0) }
+			{ Pos( 423.0f,   0.0f, 247.0f ), ST(0,0) },
+			{ Pos( 423.0f, 330.0f, 247.0f ), ST(0,0) },
+			{ Pos( 472.0f, 330.0f, 406.0f ), ST(0,0) },
+			{ Pos( 472.0f,   0.0f, 406.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 472.0f,   0.0f, 406.0f ), glm::vec2(0,0) },
-			{ Pos( 472.0f, 330.0f, 406.0f ), glm::vec2(0,0) },
-			{ Pos( 314.0f, 330.0f, 456.0f ), glm::vec2(0,0) },
-			{ Pos( 314.0f,   0.0f, 456.0f ), glm::vec2(0,0) }
+			{ Pos( 472.0f,   0.0f, 406.0f ), ST(0,0) },
+			{ Pos( 472.0f, 330.0f, 406.0f ), ST(0,0) },
+			{ Pos( 314.0f, 330.0f, 456.0f ), ST(0,0) },
+			{ Pos( 314.0f,   0.0f, 456.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 314.0f,   0.0f, 456.0f ), glm::vec2(0,0) },
-			{ Pos( 314.0f, 330.0f, 456.0f ), glm::vec2(0,0) },
-			{ Pos( 265.0f, 330.0f, 296.0f ), glm::vec2(0,0) },
-			{ Pos( 265.0f,   0.0f, 296.0f ), glm::vec2(0,0) }
+			{ Pos( 314.0f,   0.0f, 456.0f ), ST(0,0) },
+			{ Pos( 314.0f, 330.0f, 456.0f ), ST(0,0) },
+			{ Pos( 265.0f, 330.0f, 296.0f ), ST(0,0) },
+			{ Pos( 265.0f,   0.0f, 296.0f ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["white-blocks"],
-			{ Pos( 265.0f,   0.0f, 296.0f ), glm::vec2(0,0) },
-			{ Pos( 265.0f, 330.0f, 296.0f ), glm::vec2(0,0) },
-			{ Pos( 423.0f, 330.0f, 247.0f ), glm::vec2(0,0) },
-			{ Pos( 423.0f,   0.0f, 247.0f ), glm::vec2(0,0) }
+			{ Pos( 265.0f,   0.0f, 296.0f ), ST(0,0) },
+			{ Pos( 265.0f, 330.0f, 296.0f ), ST(0,0) },
+			{ Pos( 423.0f, 330.0f, 247.0f ), ST(0,0) },
+			{ Pos( 423.0f,   0.0f, 247.0f ), ST(0,0) }
 		));
 	}
 
@@ -376,12 +440,12 @@ Scene* Scene::get_new_cornell_srgb() {
 	Scene* result = Scene::get_new_cornell();
 
 	//MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/allrgb-512.png"); float lightsc=40.0f;
-	//MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/crystal-lizard-512.png"); float lightsc=40.0f;
-	MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png"); float lightsc=20.0f;
+	MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/crystal-lizard-512.png"); float lightsc=30.0f;
+	//MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png"); float lightsc=20.0f;
 	result->materials["srgb"] = mtl_tex;
 
 	MaterialLambertianSpectral* mtl_white1 = new MaterialLambertianSpectral;
-	mtl_white1->reflectance = Spectrum( 1.0f );
+	mtl_white1->reflectance = SpectralReflectance( 1.0f );
 	result->materials["white1"] = mtl_white1;
 
 	for (PrimBase* prim : result->primitives) {
@@ -392,9 +456,14 @@ Scene* Scene::get_new_cornell_srgb() {
 		else if (prim->material==result->materials["red"            ]) prim->material=mtl_tex;
 	}
 
-	static_cast<MaterialLambertianSpectral*>(result->materials["light"])->emission = Color::data->D65 * lightsc;
+	static_cast<MaterialLambertianSpectral*>(result->materials["light"])->emission = Color::data->D65_rad * lightsc;
 
 	return result;
+}
+Scene* Scene::get_new_d65sphere   () {
+	//TODO: this!
+	assert(false);
+	return nullptr;
 }
 Scene* Scene::get_new_srgb        () {
 	Scene* result = new Scene;
@@ -414,8 +483,8 @@ Scene* Scene::get_new_srgb        () {
 
 	{
 		MaterialLambertianSpectral* white_d65 = new MaterialLambertianSpectral;
-		white_d65->reflectance = Spectrum(0.0f);
-		white_d65->emission = Color::data->D65;// * 0.5f;
+		white_d65->reflectance = SpectralReflectance(0.0f);
+		white_d65->emission = Color::data->D65_rad;// * 0.5f;
 		white_d65->emission.set_filter_nearest();
 		result->materials["light"] = white_d65;
 
@@ -425,55 +494,55 @@ Scene* Scene::get_new_srgb        () {
 		Color::data->basis_bt709.b.set_filter_nearest();
 		result->materials["tex"] = mtl_tex;
 
-		Color::data->std_obs_xbar.spec.set_filter_nearest();
-		Color::data->std_obs_ybar.spec.set_filter_nearest();
-		Color::data->std_obs_zbar.spec.set_filter_nearest();
+		Color::data->std_obs_xbar.set_filter_nearest();
+		Color::data->std_obs_ybar.set_filter_nearest();
+		Color::data->std_obs_zbar.set_filter_nearest();
 	}
 
 	{
 		result->primitives.emplace_back(new PrimQuad(result->materials["tex"],
-			{ Pos( -1, -1, 0 ), glm::vec2(0,0) },
-			{ Pos(  1, -1, 0 ), glm::vec2(1,0) },
-			{ Pos(  1,  1, 0 ), glm::vec2(1,1) },
-			{ Pos( -1,  1, 0 ), glm::vec2(0,1) }
+			{ Pos( -1, -1, 0 ), ST(0,0) },
+			{ Pos(  1, -1, 0 ), ST(1,0) },
+			{ Pos(  1,  1, 0 ), ST(1,1) },
+			{ Pos( -1,  1, 0 ), ST(0,1) }
 		));
 
 		float size = 10.0f;
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-			{ Pos( -size, -size, -size ), glm::vec2(0,0) },
-			{ Pos( -size,  size, -size ), glm::vec2(0,0) },
-			{ Pos( -size,  size,  size ), glm::vec2(0,0) }
+			{ Pos( -size, -size,  size ), ST(0,0) },
+			{ Pos( -size, -size, -size ), ST(0,0) },
+			{ Pos( -size,  size, -size ), ST(0,0) },
+			{ Pos( -size,  size,  size ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
-			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-			{ Pos(  size,  size,  size ), glm::vec2(0,0) },
-			{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+			{ Pos(  size, -size, -size ), ST(0,0) },
+			{ Pos(  size, -size,  size ), ST(0,0) },
+			{ Pos(  size,  size,  size ), ST(0,0) },
+			{ Pos(  size,  size, -size ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
-			{ Pos( -size, -size, -size ), glm::vec2(0,0) }
+			{ Pos( -size, -size,  size ), ST(0,0) },
+			{ Pos(  size, -size,  size ), ST(0,0) },
+			{ Pos(  size, -size, -size ), ST(0,0) },
+			{ Pos( -size, -size, -size ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos(  size,  size,  size ), glm::vec2(0,0) },
-			{ Pos( -size,  size,  size ), glm::vec2(0,0) },
-			{ Pos( -size,  size, -size ), glm::vec2(0,0) },
-			{ Pos(  size,  size, -size ), glm::vec2(0,0) }
+			{ Pos(  size,  size,  size ), ST(0,0) },
+			{ Pos( -size,  size,  size ), ST(0,0) },
+			{ Pos( -size,  size, -size ), ST(0,0) },
+			{ Pos(  size,  size, -size ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos( -size, -size, -size ), glm::vec2(0,0) },
-			{ Pos(  size, -size, -size ), glm::vec2(0,0) },
-			{ Pos(  size,  size, -size ), glm::vec2(0,0) },
-			{ Pos( -size,  size, -size ), glm::vec2(0,0) }
+			{ Pos( -size, -size, -size ), ST(0,0) },
+			{ Pos(  size, -size, -size ), ST(0,0) },
+			{ Pos(  size,  size, -size ), ST(0,0) },
+			{ Pos( -size,  size, -size ), ST(0,0) }
 		));
 		result->primitives.emplace_back(new PrimQuad(result->materials["light"],
-			{ Pos(  size, -size,  size ), glm::vec2(0,0) },
-			{ Pos( -size, -size,  size ), glm::vec2(0,0) },
-			{ Pos( -size,  size,  size ), glm::vec2(0,0) },
-			{ Pos(  size,  size,  size ), glm::vec2(0,0) }
+			{ Pos(  size, -size,  size ), ST(0,0) },
+			{ Pos( -size, -size,  size ), ST(0,0) },
+			{ Pos( -size,  size,  size ), ST(0,0) },
+			{ Pos(  size,  size,  size ), ST(0,0) }
 		));
 	}
 
@@ -485,22 +554,28 @@ Scene* Scene::get_new_srgb        () {
 void Scene::get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,PrimBase const** light,float* pdf ) {
 	*light = lights[ rand_choice(rng,lights.size()) ];
 
-	SphereBound bound = (*light)->get_bound();
+	#if 0 //Sample the bounding sphere of the light
+		SphereBound bound = (*light)->get_bound();
 
-	Dir vec_to_sph_cen = bound.center - from;
+		Dir vec_to_sph_cen = bound.center - from;
 
-	*dir = Math::rand_toward_sphere( rng, vec_to_sph_cen,bound.radius, pdf );
+		*dir = Math::rand_toward_sphere( rng, vec_to_sph_cen,bound.radius, pdf );
+	#else //Sample the primitive directly
+		(*light)->get_rand_toward( rng, from, dir,pdf );
+	#endif
 
 	*pdf /= static_cast<float>(lights.size());
 }
 
-bool Scene::intersect(Ray const& ray, HitRecord* hitrec) const {
+bool Scene::intersect(Ray const& ray, HitRecord* hitrec, PrimBase const* ignore/*=nullptr*/) const {
 	hitrec->prim = nullptr;
 	hitrec->dist = std::numeric_limits<float>::infinity();
 
 	bool hit = false;
 	for (PrimBase const* prim : primitives) {
-		hit |= prim->intersect(ray, hitrec);
+		if (prim!=ignore) {
+			hit |= prim->intersect(ray, hitrec);
+		}
 	}
 
 	return hit;

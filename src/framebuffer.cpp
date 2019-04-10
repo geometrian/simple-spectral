@@ -1,23 +1,56 @@
 #include "framebuffer.hpp"
 
-#include "lodepng/lodepng.h"
+#include "util/lodepng/lodepng.h"
 
 
-void Framebuffer::save(std::string const& path) const {
-	struct PixelRGB8* pixels = new struct PixelRGB8[res[1]*res[0]];
+
+Framebuffer::Framebuffer(size_t const res[2]) :
+	res{res[0],res[1]}
+{
+	//Create pixel buffer
+	_pixels = new sRGB_A_F32[res[1]*res[0]];
+
+	//Fill it with a checkerboard pattern
 	for (size_t j=0;j<res[1];++j) {
 		for (size_t i=0;i<res[0];++i) {
-			PixelRGB8&   dst = pixels [(res[1]-1-j)*res[0]+i];
-			sRGBA const& src = _pixels[          j *res[0]+i];
+			if (((i/TILE_SIZE)^(j/TILE_SIZE))%2==0) {
+				_pixels[j*res[0]+i] = sRGB_A_F32( 1.0f,1.0f,1.0f, 0.5f );
+			} else {
+				_pixels[j*res[0]+i] = sRGB_A_F32( 0.0f,0.0f,0.0f, 0.5f );
+			}
+		}
+	}
+}
+Framebuffer::~Framebuffer() {
+	//Clean up pixel buffer
+	delete[] _pixels;
+}
 
-			sRGB srgb = sRGB( src );
-			srgb = glm::clamp( 255.0f*srgb, sRGB(0),sRGB(255) );
+void Framebuffer::save(std::string const& path) const {
+	//Construct temporary buffer
+	sRGB_U8* pixels = new sRGB_U8[res[1]*res[0]];
+
+	//Fill it with pixels byte-quantized from the internal storage.  While we are doing that, note
+	//	we also flip the order of the scanlines so that they are from top to bottom, since this is
+	//	the order the PNG saver expects.
+	for (size_t j=0;j<res[1];++j) {
+		for (size_t i=0;i<res[0];++i) {
+			//Source and destination pixel; note vertical flip
+			sRGB_U8&          dst = pixels [(res[1]-1-j)*res[0]+i];
+			sRGB_A_F32 const& src = _pixels[          j *res[0]+i];
+
+			//Remove alpha
+			sRGB_F32 srgb = sRGB_F32( src );
+
+			//Convert to bytes
+			srgb = glm::clamp( 255.0f*srgb, sRGB_F32(0),sRGB_F32(255) );
 			dst.r = static_cast<uint8_t>(std::round(srgb.r));
 			dst.g = static_cast<uint8_t>(std::round(srgb.g));
 			dst.b = static_cast<uint8_t>(std::round(srgb.b));
 		}
 	}
 
+	//Save the image to disk
 	lodepng::encode(
 		path,
 		reinterpret_cast<uint8_t*>(pixels),
@@ -25,30 +58,13 @@ void Framebuffer::save(std::string const& path) const {
 		LCT_RGB
 	);
 
+	//Cleanup
 	delete[] pixels;
 }
 
 #ifdef SUPPORT_WINDOWED
 void Framebuffer::draw() const {
-	//glClearColor( 1.0f,1.0f,1.0f, 1.0f );
 	glClear(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
-
-	/*glViewport(0,0,static_cast<GLsizei>(res[0]),static_cast<GLsizei>(res[1]));
-	glMatrixMode(GL_PROJECTION);
-	glLoadIdentity();
-	glOrtho( 0.0,static_cast<GLdouble>(res[0]), 0.0,static_cast<GLdouble>(res[1]), -1.0,1.0 );
-
-	glColor3f( 0.5f,0.5f,0.5f );
-	glEnable(GL_POLYGON_STIPPLE);
-	GLubyte pattern[128];
-	for (size_t j=0;j<4;++j) for (size_t i=0;i<4;++i) {
-		GLubyte value = ((i^j)&0b1)>0 ? 0x00 : 0xFF;
-		for (size_t jj=0;jj<8;++jj) pattern[(8*j+jj)*4+i]=value;
-	}
-	glPolygonStipple(pattern);
-	glRecti(0,0,static_cast<GLint>(res[0])-1,static_cast<GLint>(res[1])-1);
-	glDisable(GL_POLYGON_STIPPLE);
-	glColor3f(1,1,1);*/
 
 	glDrawPixels(
 		static_cast<GLsizei>(res[0]), static_cast<GLsizei>(res[1]),

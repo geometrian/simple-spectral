@@ -1,11 +1,14 @@
 ﻿#pragma once
 
-//C Standard Library
+
+
+//Includes
+
+//	C Standard Library
 #include <cassert>
-//#include <cinttypes>
 #include <cstdio>
 
-//C++ Standard Library
+//	C++ Standard Library
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -16,97 +19,177 @@
 #include <random>
 #include <set>
 #include <sstream>
-//#include <string>
 #include <thread>
 #include <vector>
 
+//	GLM
 #define GLM_FORCE_SIZE_T_LENGTH
 #include <glm/gtc/matrix_transform.hpp>
-//#include <glm/gtc/type_ptr.hpp>
 #include <glm/vec3.hpp>
 #include <glm/vec4.hpp>
 
 #ifdef SUPPORT_WINDOWED
+	//	GLFW
 	#include <GLFW/glfw3.h>
 #endif
 
 
-#define TILE_SIZE size_t(4)
 
-#define SAMPLE_WAVELENGTHS size_t(4)
+//Configuration
 
+//	(Note also usage of user-defined literals, defined below.)
+
+//	Maximum depth of path trace integrator (including shadow rays).
 #define MAX_DEPTH 10u
 
-#define LAMBDA_MIN nm(380.0f)
-#define LAMBDA_MAX nm(780.0f)
-#define LAMBDA_STEP ( (LAMBDA_MAX-LAMBDA_MIN) / static_cast<float>(SAMPLE_WAVELENGTHS) )
+//	Work items during the path trace are square tiles of pixels.  This is their width and height.
+#define TILE_SIZE 4_zu
 
-#define EPS 0.00001f
-
-#if 1
-	#define CIE_OBSERVER 1931
-#else
-	#define CIE_OBSERVER 2006
-#endif
-
+//	If enabled, compensates for the cosine-factor falloff due to viewing rays leaving the camera
+//		sensor at an angle by brightening those areas by an inverse factor.  This is quite typical
+//		for real-world cameras (indeed, many people don't know this is even necessary).
 #define FLAT_FIELD_CORRECTION
 
+//	Epsilon, used for a variety of numerical tests.
+#define EPS 0.001f
 
-template <typename T> constexpr T PI = T(3.14159265358979323846L); //π
+//	Whether to use spectral rendering (correct) or RGB mode (what many people do instead).
+#if 1
+	#define RENDER_MODE_SPECTRAL
+#else
+	#define RENDER_MODE_RGB
+#endif
+
+#ifdef RENDER_MODE_SPECTRAL
+	//	The CIE observer standard to use.  The 1931 version is the CIE 1931 2° standard observer,
+	//		and the 2006 version is the CIE 2006 10° standard observer.  The former is based on
+	//		1920s experiments and is well-established.  The latter is based on updated data, a wider
+	//		field of view, and a denser sampling.  The latter is probably what one should be using.
+	#if 0 //TODO
+		#define CIE_OBSERVER 1931
+	#else
+		#define CIE_OBSERVER 2006
+	#endif
+
+	//	Number of wavelengths sampled by a single sample.  When more than one is used, hero
+	//		wavelength sampling is done.
+	#define SAMPLE_WAVELENGTHS 4_zu
+
+	//	Shortest and longest wavelengths, in nanometers, considered during the rendering.  It only
+	//		makes sense to sample wavelengths where the observer can see anything (and maybe then,
+	//		perhaps even slightly less than that, since at the extreme wavelengths we cannot see
+	//		very well).  The values here are simply the ranges of the respective observer functions.
+	#if   CIE_OBSERVER == 1931
+		#define LAMBDA_MIN 380_nm
+		#define LAMBDA_MAX 780_nm
+	#elif CIE_OBSERVER == 2006
+		#define LAMBDA_MIN 390_nm
+		#define LAMBDA_MAX 830_nm
+	#else
+		#error "Implementation error!"
+	#endif
+#endif
 
 
-typedef glm::vec3 CIEXYZ;
-typedef glm::vec3 lRGB;
-typedef glm::vec3 sRGB;
-typedef glm::vec4 sRGBA;
 
-struct PixelRGB8 final {
-	uint8_t r, g, b;
-};
-static_assert(sizeof(struct PixelRGB8)==3,"Implementation error!");
+//Common Types
 
+#ifdef RENDER_MODE_SPECTRAL
+	//	CIE XYZ tristimulus values
+	typedef glm::vec3 CIEXYZ_32F;
+
+	//	Nanometers
+	typedef float nm;
+	constexpr inline float operator""_nm(long double        x) { return static_cast<float>(x); }
+	constexpr inline float operator""_nm(unsigned long long x) { return static_cast<float>(x); }
+
+	//	Kelvin scale (kelvin, K)
+	typedef float kelvin;
+#endif
+
+//	BT.709 color
+//		Linear (pre-gamma), floating-point
+typedef glm::vec3 lRGB_F32;
+//		Post-gamma, floating-point
+typedef glm::vec3 sRGB_F32;
+//		Post-gamma RGB and linear alpha, floating-point
+typedef glm::vec4 sRGB_A_F32;
+//		Post-gamma, byte
+class sRGB_U8 final { public: uint8_t r, g, b; };
+static_assert(sizeof(sRGB_U8)==3,"Implementation error!");
+
+//	Position
 typedef glm::vec3 Pos;
+//	Direction
 typedef glm::vec3 Dir;
+//	Distance
+typedef float Dist;
 
-typedef float nm;
+//	Angle
+typedef float radians;
+
+//	ST and UV coordinates.  Many graphics people call mesh texture coordinates "UV"s, but strictly
+//		speaking they're "ST"-coordinates.  That is, they are normalized to the [0,1] range.  The
+//		"UV" space is actually the coordinates within the texture space, and is not normalized by
+//		the resolution of the texture.
+typedef glm::vec2 ST;
+typedef glm::vec2 UV;
 
 
-inline bool str_contains(std::string const& main, std::string const& test) {
-	return main.find(test) != std::string::npos;
-}
-inline std::vector<std::string> str_split(std::string const& main, std::string const& test, size_t max_splits=~size_t(0)) {
-	std::vector<std::string> result;
-	size_t num_splits = 0;
-	size_t offset = 0;
-	LOOP:
-		size_t loc = main.find(test,offset);
-		if (loc!=main.npos) {
-			assert(offset<=loc);
-			result.emplace_back(main.substr(offset,loc-offset));
-			offset = loc + test.size();
-			if (++num_splits<max_splits) goto LOOP;
-		}
-	result.emplace_back(main.substr(offset));
-	return result;
-}
-inline int      str_to_int (std::string const& str) {
-	size_t i;
-	int value = std::stoi(str,&i);
-	if (i==str.length()) return value;
-	throw -1; //Contained non-number values
-}
-inline unsigned str_to_nneg(std::string const& str) {
-	int val = str_to_int(str);
-	if (val>=0) return static_cast<unsigned>(val);
-	throw -2; //Negative
-}
-inline unsigned str_to_pos (std::string const& str) {
-	int val = str_to_int(str);
-	if (val>0) return static_cast<unsigned>(val);
-	throw -2; //Not strictly positive
+
+//Common stuff
+
+namespace Constants {
+
+//	π
+//		Value is given to machine precision.
+template <typename T> constexpr T pi = T(3.14159265358979323846L);
+
+//	k_B, the Boltzmann constant (J⋅K⁻¹)
+//		Value is given to known precision.
+template <typename T> constexpr T k_B = T(1.38064852e-23L);
+
+//	h, the Planck constant (J⋅s)
+//		Value is a precise definition.
+template <typename T> constexpr T h = T(6.62607015e-34L);
+
+//	c, the speed of light (m⋅s⁻¹)
+//		Value is a precise definition.
+template <typename T> constexpr T c = T(299'792'458.0L);
+
 }
 
-template <typename type> inline size_t get_hashed(type const& item) {
+//	Ray structure
+class Ray final {
+	public:
+		Pos orig;
+		Dir dir;
+
+	public:
+		Pos at(Dist dist) const { return orig + dist*dir; }
+};
+
+//	Hit record
+class PrimBase;
+class HitRecord final {
+	public:
+		PrimBase const* prim;
+
+		Dir normal;
+		ST st;
+
+		Dist dist;
+};
+
+//	Bounding sphere
+class SphereBound final {
+	public:
+		Pos center;
+		Dist radius;
+};
+
+//	Hash functions
+template <typename type> inline size_t get_hashed(type const& item                     ) {
 	std::hash<type> hasher;
 	return hasher(item);
 }
@@ -115,31 +198,14 @@ template <typename type> inline size_t get_hashed(type const& item, size_t combi
 	return combine_with^( get_hashed(item) + 0x9E3779B9 + (combine_with<<6) + (combine_with>>2) );
 }
 
-class Ray final {
-	public:
-		Pos orig;
-		Dir dir;
+//	Definition of `size_t` literal
+constexpr inline size_t operator""_zu(unsigned long long x) { return static_cast<size_t>(x); }
 
-	public:
-		Pos at(float dist) const {
-			return orig + dist*dir;
-		}
-};
 
-class PrimBase;
 
-class HitRecord final {
-	public:
-		PrimBase const* prim;
+//Helpful macros
 
-		Dir normal;
-		glm::vec2 st;
-
-		float dist;
-};
-
-class SphereBound final {
-	public:
-		Pos center;
-		float radius;
-};
+#ifdef RENDER_MODE_SPECTRAL
+	//	The size of the wavelength band each wavelength in a hero sample is responsible for
+	#define LAMBDA_STEP ( (LAMBDA_MAX-LAMBDA_MIN) / static_cast<nm>(SAMPLE_WAVELENGTHS) )
+#endif

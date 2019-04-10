@@ -2,81 +2,103 @@
 
 #include "stdafx.hpp"
 
-#include "rng.hpp"
+#include "util/random.hpp"
+
 #include "spectrum.hpp"
 
 
-class sRGB_Texture final {
-	private:
+
+//Texture defining reflectance data
+//	The data is stored in sRGB texels, but using our algorithm (see paper for details) can be
+//	sampled with hero wavelength sampling, returning spectral reflectance on-the-fly.
+class sRGB_ReflectanceTexture final {
+	public:
+		//Resolution
 		size_t res[2];
 
-		PixelRGB8* _data;
+	private:
+		//Internal data storage stored in scanlines from top to bottom
+		sRGB_U8* _data;
 
 	public:
-		sRGB_Texture(std::string const& path);
-		~sRGB_Texture();
+		explicit sRGB_ReflectanceTexture(std::string const& path);
+		~sRGB_ReflectanceTexture();
 
-		Spectrum::Sample sample( size_t i,size_t j,   nm lambda_0 ) const;
-		Spectrum::Sample sample( glm::vec2 const& st, nm lambda_0 ) const;
+		//Return hero wavelength sample of the texture at the coordinates given by pixel index
+		//	(`i`,`j`) for the hero wavelength `lambda_0`.  Note that scanlines are stored top-to-
+		//	bottom.
+		SpectralReflectance::HeroSample sample( size_t i,size_t j, nm lambda_0 ) const;
+		//Return hero wavelength sample of the texture at the coordinates given by ST coordinate
+		//	`st` for the hero wavelength `lambda_0`.
+		SpectralReflectance::HeroSample sample( ST const& st,      nm lambda_0 ) const;
 };
 
 
+
+//Material
 class MaterialBase {
 	protected:
 		MaterialBase() = default;
 	public:
 		virtual ~MaterialBase() = default;
 
-		virtual Spectrum::Sample sample_emission(glm::vec2 const& st, nm lambda_0) const = 0;
-		virtual Spectrum::Sample sample_brdf    (glm::vec2 const& st, nm lambda_0) const = 0;
+		virtual SpectralRadiance::HeroSample sample_emission(ST const& st, nm lambda_0) const = 0;
+		virtual SpectralRecipSR:: HeroSample sample_brdf    (ST const& st, nm lambda_0) const = 0;
 
 		virtual bool is_emissive() const = 0;
 };
 
+//Lambertian material with albedo defined by texture
 class MaterialLambertianTexture final : public MaterialBase {
 	private:
-		sRGB_Texture _texture;
+		sRGB_ReflectanceTexture _albedo_texture;
 
 	public:
-		MaterialLambertianTexture(std::string const& path) : MaterialBase(), _texture(path) {}
+		MaterialLambertianTexture(std::string const& path) : MaterialBase(), _albedo_texture(path) {}
 		virtual ~MaterialLambertianTexture() = default;
 
-		virtual Spectrum::Sample sample_emission(glm::vec2 const& /*st*/, nm /*lambda_0*/) const override { return Spectrum::Sample(0); }
-		virtual Spectrum::Sample sample_brdf    (glm::vec2 const&   st,   nm   lambda_0  ) const override {
-			return _texture.sample(st,lambda_0) / PI<float>;
+		virtual SpectralRadiance::HeroSample sample_emission(ST const& /*st*/, nm /*lambda_0*/) const override {
+			return SpectralRadiance::HeroSample(0);
+		}
+		virtual SpectralRecipSR:: HeroSample sample_brdf    (ST const&   st,   nm   lambda_0  ) const override {
+			return _albedo_texture.sample(st,lambda_0) / Constants::pi<float>;
 		}
 
 		virtual bool is_emissive() const override { return false; }
 };
+//Lambertian material with albedo (and potential Lambertian emission) defined by spectrum
 class MaterialLambertianSpectral final : public MaterialBase {
 	public:
-		//Emission (Lambertian emitter, radiance, default zeroes)
-		Spectrum emission;
+		//Emission (default zeroes).
+		SpectralRadiance emission;
 
-		//Reflectance (percentage, default ones)
-		Spectrum reflectance;
+		//Reflectance (default ones)
+		SpectralReflectance reflectance;
 
 	public:
-		MaterialLambertianSpectral();
+		MaterialLambertianSpectral() : emission(0.0f), reflectance(1.0f) {}
 		virtual ~MaterialLambertianSpectral() = default;
 
-		virtual Spectrum::Sample sample_emission(glm::vec2 const& /*st*/, nm lambda_0) const override {
+		virtual SpectralRadiance::HeroSample sample_emission(ST const& /*st*/, nm lambda_0) const override {
 			return emission   [lambda_0];
 		}
-		virtual Spectrum::Sample sample_brdf    (glm::vec2 const& /*st*/, nm lambda_0) const override {
-			return reflectance[lambda_0] / PI<float>;
+		virtual SpectralRecipSR:: HeroSample sample_brdf    (ST const& /*st*/, nm lambda_0) const override {
+			return reflectance[lambda_0] / Constants::pi<float>;
 		}
 
 		virtual bool is_emissive() const override {
-			return Spectrum::integrate(emission) > 0.0f;
+			return SpectralRadiance::integrate(emission) > 0.0f;
 		}
 };
 
 
+
+//TODO: comment
+
 class Vertex final {
 	public:
 		Pos pos;
-		glm::vec2 st;
+		ST st;
 };
 
 class PrimBase {
@@ -101,6 +123,8 @@ class PrimBase {
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const = 0;
 
+		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const = 0;
+
 		virtual SphereBound get_bound() const = 0;
 };
 
@@ -122,6 +146,16 @@ class PrimTri final : public PrimBase {
 		virtual ~PrimTri() = default;
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const override;
+
+		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override {
+			Math::SphericalTriangle tri(
+				glm::normalize( verts[0].pos - from ),
+				glm::normalize( verts[1].pos - from ),
+				glm::normalize( verts[2].pos - from )
+			);
+			*dir = Math::rand_toward_sphericaltri( rng, tri );
+			*pdf = 1.0f / tri.surface_area;
+		}
 
 		virtual SphereBound get_bound() const override {
 			Pos centroid = (verts[0].pos+verts[1].pos+verts[2].pos)*(1.0f/3.0f);
@@ -149,6 +183,11 @@ class PrimQuad final : public PrimBase {
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const override;
 
+		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override {
+			( rand_1f(rng)<=0.5f ? tri0 : tri1 ).get_rand_toward(rng,from,dir,pdf);
+			*pdf *= 0.5f;
+		}
+
 		virtual SphereBound get_bound() const override {
 			Pos centroid = (tri0.verts[0].pos+tri0.verts[1].pos+tri0.verts[2].pos+tri1.verts[2].pos)*0.25f;
 			float max_dist = std::max({
@@ -160,6 +199,7 @@ class PrimQuad final : public PrimBase {
 			return { centroid, max_dist };
 		}
 };
+
 
 
 class Scene final {
@@ -194,9 +234,10 @@ class Scene final {
 	public:
 		static Scene* get_new_cornell     ();
 		static Scene* get_new_cornell_srgb();
+		static Scene* get_new_d65sphere   ();
 		static Scene* get_new_srgb        ();
 
 		void get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,PrimBase const** light,float* pdf );
 
-		bool intersect(Ray const& ray, HitRecord* hitrec) const;
+		bool intersect(Ray const& ray, HitRecord* hitrec, PrimBase const* ignore=nullptr) const;
 };
