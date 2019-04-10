@@ -4,6 +4,10 @@
 
 
 
+#ifdef RENDER_MODE_SPECTRAL
+
+
+
 _Spectrum::_Spectrum(float data) :
 	_Spectrum( std::vector<float>(2_zu,data), LAMBDA_MIN,LAMBDA_MAX )
 {}
@@ -197,3 +201,7 @@ std::vector<std::vector<float>> load_spectral_data(std::string const& csv_path) 
 
 	return data;
 }
+
+
+
+#endif

@@ -10,6 +10,8 @@ namespace Color {
 
 
 
+#ifdef RENDER_MODE_SPECTRAL
+
 //Encapsulates color data required by the renderer.
 struct _Data final {
 	//CIE standard illuminant D65.
@@ -59,7 +61,11 @@ void   init();
 //Cleanup of global color data
 void deinit();
 
+#endif
 
+
+
+#ifdef RENDER_MODE_SPECTRAL
 
 //Calculate the CIE XYZ tristimulus value for the given spectral radiant flux `spec_rad_flux`.  Note
 //	radiant flux (i.e. radiant power) is what the eye is sensitive to, not e.g. radiance.  A camera
@@ -99,25 +105,6 @@ inline CIEXYZ_32F specradflux_to_ciexyz(SpectralRadiantFlux::HeroSample const& s
 	return CIEXYZ_32F(X,Y,Z);
 }
 
-//Conversion from/to linear (pre-gamma), normalized BT.709 RGB (i.e., ℓRGB) to/from post-gamma,
-//	normalized BT.709 RGB (i.e., floating-point sRGB).  Note that the conversion from ℓRGB to sRGB
-//	and vice-versa are not simple power laws!  The standard-compliant versions are not even much-
-//	more complicated.
-inline sRGB_F32 lrgb_to_srgb(lRGB_F32 const& lrgb) {
-	return sRGB_F32(
-		lrgb.r<0.0031308f ? 12.92f*lrgb.r : 1.055f*std::pow(lrgb.r,1.0f/2.4f)-0.055f,
-		lrgb.g<0.0031308f ? 12.92f*lrgb.g : 1.055f*std::pow(lrgb.g,1.0f/2.4f)-0.055f,
-		lrgb.b<0.0031308f ? 12.92f*lrgb.b : 1.055f*std::pow(lrgb.b,1.0f/2.4f)-0.055f
-	);
-}
-inline lRGB_F32 srgb_to_lrgb(sRGB_F32 const& srgb) {
-	return lRGB_F32(
-		srgb.r<0.04045f ? srgb.r/12.92f : std::pow((srgb.r+0.055f)/1.055f,2.4f),
-		srgb.g<0.04045f ? srgb.g/12.92f : std::pow((srgb.g+0.055f)/1.055f,2.4f),
-		srgb.b<0.04045f ? srgb.b/12.92f : std::pow((srgb.b+0.055f)/1.055f,2.4f)
-	);
-}
-
 //Conversion from a linear (pre-gamma), normalized BT.709 RGB (i.e., ℓRGB) triple representing a
 //	reflectance to a hero sample from a reflectance spectrum corresponding to it (corresponding, in
 //	the sense that D65 (the white point of BT.709) hemispherically integrated over a Lambertian
@@ -136,6 +123,27 @@ inline SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm
 inline sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	lRGB_F32 lrgb = data->matr_XYZtoRGB * xyz;
 	return lrgb_to_srgb(lrgb);
+}
+
+#endif
+
+//Conversion from/to linear (pre-gamma), normalized BT.709 RGB (i.e., ℓRGB) to/from post-gamma,
+//	normalized BT.709 RGB (i.e., floating-point sRGB).  Note that the conversion from ℓRGB to sRGB
+//	and vice-versa are not simple power laws!  The standard-compliant versions are not even much-
+//	more complicated.
+inline sRGB_F32 lrgb_to_srgb(lRGB_F32 const& lrgb) {
+	return sRGB_F32(
+		lrgb.r<0.0031308f ? 12.92f*lrgb.r : 1.055f*std::pow(lrgb.r,1.0f/2.4f)-0.055f,
+		lrgb.g<0.0031308f ? 12.92f*lrgb.g : 1.055f*std::pow(lrgb.g,1.0f/2.4f)-0.055f,
+		lrgb.b<0.0031308f ? 12.92f*lrgb.b : 1.055f*std::pow(lrgb.b,1.0f/2.4f)-0.055f
+	);
+}
+inline lRGB_F32 srgb_to_lrgb(sRGB_F32 const& srgb) {
+	return lRGB_F32(
+		srgb.r<0.04045f ? srgb.r/12.92f : std::pow((srgb.r+0.055f)/1.055f,2.4f),
+		srgb.g<0.04045f ? srgb.g/12.92f : std::pow((srgb.g+0.055f)/1.055f,2.4f),
+		srgb.b<0.04045f ? srgb.b/12.92f : std::pow((srgb.b+0.055f)/1.055f,2.4f)
+	);
 }
 
 

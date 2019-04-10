@@ -39,6 +39,9 @@
 
 //	(Note also usage of user-defined literals, defined below.)
 
+//	Use explicit light sampling when path tracing.
+#define EXPLICIT_LIGHT_SAMPLING
+
 //	Maximum depth of path trace integrator (including shadow rays).
 #define MAX_DEPTH 10u
 
@@ -54,7 +57,7 @@
 #define EPS 0.001f
 
 //	Whether to use spectral rendering (correct) or RGB mode (what many people do instead).
-#if 1
+#if 0
 	#define RENDER_MODE_SPECTRAL
 #else
 	#define RENDER_MODE_RGB
@@ -65,7 +68,7 @@
 	//		and the 2006 version is the CIE 2006 10° standard observer.  The former is based on
 	//		1920s experiments and is well-established.  The latter is based on updated data, a wider
 	//		field of view, and a denser sampling.  The latter is probably what one should be using.
-	#if 0 //TODO
+	#if 0
 		#define CIE_OBSERVER 1931
 	#else
 		#define CIE_OBSERVER 2006
@@ -134,6 +137,14 @@ typedef float radians;
 //		the resolution of the texture.
 typedef glm::vec2 ST;
 typedef glm::vec2 UV;
+
+#ifndef RENDER_MODE_SPECTRAL
+	//Absolute madness, I say
+	typedef lRGB_F32 RGB_Radiance;
+	typedef lRGB_F32 RGB_RadiantFlux;
+	typedef lRGB_F32 RGB_RecipSR;
+#endif
+typedef lRGB_F32 RGB_Reflectance;
 
 
 

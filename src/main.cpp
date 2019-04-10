@@ -152,8 +152,10 @@ int main(int argc, char* argv[]) {
 		return -1;
 	}
 
-	//Initialize color data as-necessary
+	#ifdef RENDER_MODE_SPECTRAL
+	//Initialize color data
 	Color::init();
+	#endif
 
 	//Create renderer
 	Renderer renderer(options);
@@ -229,8 +231,10 @@ int main(int argc, char* argv[]) {
 	}
 	#endif
 
-	//Clean up color data as-necessary
+	#ifdef RENDER_MODE_SPECTRAL
+	//Clean up color data
 	Color::deinit();
+	#endif
 
 	//Return to OS
 	return 0;

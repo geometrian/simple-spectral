@@ -4,6 +4,10 @@
 
 
 
+#ifdef RENDER_MODE_SPECTRAL
+
+
+
 //Encapsulates a spectrum defined by sequence of "n" values over a wavelength range "[λₘᵢₙ,λₘₐₓ]".
 class _Spectrum final {
 	public:
@@ -56,10 +60,10 @@ class _Spectrum final {
 		//static _HeroSample integrate_sub(_Spectrum const& spec);
 };
 
-//Spectral radiant flux (note units: kW·nm⁻¹)
-typedef _Spectrum SpectralRadiantFlux;
 //Spectral radiance (note units: kW·sr⁻¹·m⁻²·nm⁻¹)
 typedef _Spectrum SpectralRadiance;
+//Spectral radiant flux (note units: kW·nm⁻¹)
+typedef _Spectrum SpectralRadiantFlux;
 //Spectral reciprocal-steradians (sr⁻¹)
 typedef _Spectrum SpectralRecipSR;
 //Spectral reflectance (dimensionless, between "0" and "1")
@@ -72,3 +76,7 @@ typedef _Spectrum SpectrumUnspecified;
 //Loads spectral data from a CSV file.  The data is in rows, and is therefore returned as a list of
 //	column vectors.
 std::vector<std::vector<float>> load_spectral_data(std::string const& csv_path);
+
+
+
+#endif

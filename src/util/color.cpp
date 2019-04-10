@@ -6,6 +6,10 @@ namespace Color {
 
 
 
+#ifdef RENDER_MODE_SPECTRAL
+
+
+
 //Generates the conversion matrix for a given RGB space.  Although you can look up the matrix for
 //	many RGB spaces (including BT.709), it is better to compute it from first principles, so as to
 //	avoid roundoff error and take into account any updated data.  The algorithm is simple, anyway.
@@ -133,6 +137,10 @@ void   init() {
 void deinit() {
 	delete data;
 }
+
+
+
+#endif
 
 
 

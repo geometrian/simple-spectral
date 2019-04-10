@@ -24,6 +24,7 @@ class sRGB_ReflectanceTexture final {
 		explicit sRGB_ReflectanceTexture(std::string const& path);
 		~sRGB_ReflectanceTexture();
 
+	#ifdef RENDER_MODE_SPECTRAL
 		//Return hero wavelength sample of the texture at the coordinates given by pixel index
 		//	(`i`,`j`) for the hero wavelength `lambda_0`.  Note that scanlines are stored top-to-
 		//	bottom.
@@ -31,6 +32,13 @@ class sRGB_ReflectanceTexture final {
 		//Return hero wavelength sample of the texture at the coordinates given by ST coordinate
 		//	`st` for the hero wavelength `lambda_0`.
 		SpectralReflectance::HeroSample sample( ST const& st,      nm lambda_0 ) const;
+	#else
+		//Return RGB sample of the texture at the coordinates given by pixel index (`i`,`j`).  Note
+		//	that scanlines are stored top-to-bottom.
+		RGB_Reflectance                 sample( size_t i,size_t j              ) const;
+		//Return RGB sample of the texture at the coordinates given by ST coordinate `st`.
+		RGB_Reflectance                 sample( ST const& st                   ) const;
+	#endif
 };
 
 
@@ -42,8 +50,13 @@ class MaterialBase {
 	public:
 		virtual ~MaterialBase() = default;
 
+	#ifdef RENDER_MODE_SPECTRAL
 		virtual SpectralRadiance::HeroSample sample_emission(ST const& st, nm lambda_0) const = 0;
 		virtual SpectralRecipSR:: HeroSample sample_brdf    (ST const& st, nm lambda_0) const = 0;
+	#else
+		virtual RGB_Radiance                 sample_emission(ST const& st             ) const = 0;
+		virtual RGB_RecipSR                  sample_brdf    (ST const& st             ) const = 0;
+	#endif
 
 		virtual bool is_emissive() const = 0;
 };
@@ -57,15 +70,25 @@ class MaterialLambertianTexture final : public MaterialBase {
 		MaterialLambertianTexture(std::string const& path) : MaterialBase(), _albedo_texture(path) {}
 		virtual ~MaterialLambertianTexture() = default;
 
+	#ifdef RENDER_MODE_SPECTRAL
 		virtual SpectralRadiance::HeroSample sample_emission(ST const& /*st*/, nm /*lambda_0*/) const override {
 			return SpectralRadiance::HeroSample(0);
 		}
 		virtual SpectralRecipSR:: HeroSample sample_brdf    (ST const&   st,   nm   lambda_0  ) const override {
 			return _albedo_texture.sample(st,lambda_0) / Constants::pi<float>;
 		}
+	#else
+		virtual RGB_Radiance                 sample_emission(ST const& st                     ) const override {
+			return RGB_Reflectance             (0);
+		}
+		virtual RGB_RecipSR                  sample_brdf    (ST const& st                     ) const override {
+			return _albedo_texture.sample(st         ) / Constants::pi<float>;
+		}
+	#endif
 
 		virtual bool is_emissive() const override { return false; }
 };
+#ifdef RENDER_MODE_SPECTRAL
 //Lambertian material with albedo (and potential Lambertian emission) defined by spectrum
 class MaterialLambertianSpectral final : public MaterialBase {
 	public:
@@ -90,6 +113,32 @@ class MaterialLambertianSpectral final : public MaterialBase {
 			return SpectralRadiance::integrate(emission) > 0.0f;
 		}
 };
+#else
+//Lambertian material with albedo (and potential Lambertian emission) defined by RGB
+class MaterialLambertianRGB      final : public MaterialBase {
+	public:
+		//Emission (default zeroes).
+		RGB_Radiance emission;
+
+		//Reflectance (default ones)
+		RGB_Reflectance reflectance;
+
+	public:
+		MaterialLambertianRGB() : emission(0.0f), reflectance(1.0f) {}
+		virtual ~MaterialLambertianRGB() = default;
+
+		virtual RGB_Radiance                 sample_emission(ST const& /*st*/             ) const override {
+			return emission;
+		}
+		virtual RGB_RecipSR                  sample_brdf    (ST const& /*st*/             ) const override {
+			return reflectance / Constants::pi<float>;
+		}
+
+		virtual bool is_emissive() const override {
+			return emission.r>0.0f || emission.g>0.0f || emission.b>0.0f;
+		}
+};
+#endif
 
 
 

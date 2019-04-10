@@ -30,18 +30,33 @@ sRGB_ReflectanceTexture::~sRGB_ReflectanceTexture() {
 	delete[] _data;
 }
 
-SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( size_t i,size_t j, nm lambda_0 ) const {
+#ifdef RENDER_MODE_SPECTRAL
+SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( size_t i,size_t j, nm lambda_0 ) const
+#else
+RGB_Reflectance                 sRGB_ReflectanceTexture::sample( size_t i,size_t j              ) const
+#endif
+{
 	//Load sRGB data and convert to floating-point.
 	sRGB_U8 const& srgb_u8 = _data[j*res[0]+i];
 	sRGB_F32 srgb = sRGB_F32(srgb_u8.r,srgb_u8.g,srgb_u8.b)*(1.0f/255.0f);
 
 	//Undo the gamma transform to get ℓRGB.
-	lRGB_F32 lrgb = Color::srgb_to_lrgb(srgb);
+	RGB_Reflectance lrgb = Color::srgb_to_lrgb(srgb);
 
-	//Sample the reflection spectrum defined by this ℓRGB triple.
+	#ifdef RENDER_MODE_SPECTRAL
+	//Sample the reflection spectrum corresponding to this ℓRGB triple.  See paper for details on
+	//	what "corresponding" means.
 	return Color::lrgb_to_specrefl(lrgb,lambda_0);
+	#else
+	return                         lrgb;
+	#endif
 }
-SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( ST const& st,      nm lambda_0 ) const {
+#ifdef RENDER_MODE_SPECTRAL
+SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( ST const& st,      nm lambda_0 ) const
+#else
+RGB_Reflectance                 sRGB_ReflectanceTexture::sample( ST const& st                   ) const
+#endif
+{
 	#if 1
 		//Convert from ST space to UV space.
 		UV uv = st * glm::vec2(res[0],res[1]);
@@ -59,7 +74,11 @@ SpectralReflectance::HeroSample sRGB_ReflectanceTexture::sample( ST const& st,  
 		j = glm::clamp( j, 0,static_cast<int>(res[1]-1) );
 
 		//Sample the texture
+		#ifdef RENDER_MODE_SPECTRAL
 		return sample( static_cast<size_t>(i),static_cast<size_t>(j), lambda_0 );
+		#else
+		return sample( static_cast<size_t>(i),static_cast<size_t>(j)           );
+		#endif
 	#else
 		//Return the ST coordinates as a spectral reflectance.
 		return Color::lrgb_to_specrefl(lRGB_F32(st,0),lambda_0);
@@ -213,47 +232,63 @@ Scene* Scene::get_new_cornell     () {
 	}
 
 	{
-		std::vector<std::vector<float>> data = load_spectral_data("data/scenes/cornell/white-green-red.csv");
-		if (data.size()==3); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
+		#ifdef RENDER_MODE_SPECTRAL
+			std::vector<std::vector<float>> data = load_spectral_data("data/scenes/cornell/white-green-red.csv");
+			if (data.size()==3); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
 
-		MaterialLambertianSpectral* white_back = new MaterialLambertianSpectral;
-		white_back->reflectance = SpectralReflectance( data[0], 400,700 );
-		//white_back->reflectance = SpectralReflectance( 1.0f );
-		result->materials["white-back"] = white_back;
+			MaterialLambertianSpectral* white_back      = new MaterialLambertianSpectral;
+			white_back->reflectance = SpectralReflectance( data[0], 400,700 );
+			//white_back->reflectance = SpectralReflectance( 1.0f );
 
-		MaterialLambertianSpectral* white_blocks = new MaterialLambertianSpectral(*white_back);
-		result->materials["white-blocks"] = white_blocks;
+			MaterialLambertianSpectral* white_blocks    = new MaterialLambertianSpectral(*white_back);
 
-		MaterialLambertianSpectral* white_floorceil = new MaterialLambertianSpectral(*white_back);
+			MaterialLambertianSpectral* white_floorceil = new MaterialLambertianSpectral(*white_back);
+
+			MaterialLambertianSpectral* green           = new MaterialLambertianSpectral;
+			green->     reflectance = SpectralReflectance( data[1], 400,700 );
+
+			MaterialLambertianSpectral* red             = new MaterialLambertianSpectral;
+			red->       reflectance = SpectralReflectance( data[2], 400,700 );
+		#else
+			MaterialLambertianRGB*      white_back      = new MaterialLambertianRGB;
+			white_back->reflectance = RGB_Reflectance(1,1,1);
+
+			MaterialLambertianRGB*      white_blocks    = new MaterialLambertianRGB(*white_back);
+
+			MaterialLambertianRGB*      white_floorceil = new MaterialLambertianRGB(*white_back);
+
+			MaterialLambertianRGB*      green           = new MaterialLambertianRGB;
+			green->     reflectance = RGB_Reflectance(0,1,0);
+
+			MaterialLambertianRGB*      red             = new MaterialLambertianRGB;
+			red->       reflectance = RGB_Reflectance(1,0,0);
+		#endif
+
+		result->materials["white-back"     ] = white_back;
+		result->materials["white-blocks"   ] = white_blocks;
 		result->materials["white-floorceil"] = white_floorceil;
-
-		MaterialLambertianSpectral* green = new MaterialLambertianSpectral;
-		green->reflectance = SpectralReflectance( data[1], 400,700 );
-		result->materials["green"] = green;
-
-		MaterialLambertianSpectral* red   = new MaterialLambertianSpectral;
-		red->  reflectance = SpectralReflectance( data[2], 400,700 );
-		result->materials["red"  ] = red;
+		result->materials["green"          ] = green;
+		result->materials["red"            ] = red;
 	}
 
 	{
-		std::vector<std::vector<float>> data = load_spectral_data("data/scenes/cornell/light.csv");
-		if (data.size()==1); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
+		#ifdef RENDER_MODE_SPECTRAL
+			std::vector<std::vector<float>> data = load_spectral_data("data/scenes/cornell/light.csv");
+			if (data.size()==1); else { fprintf(stderr,"Invalid data in file!\n"); throw -1; }
 
-		MaterialLambertianSpectral* light = new MaterialLambertianSpectral;
-		light->emission    = SpectralRadiance( data[0], 400,700 ) * 200;
-		//light->emission    = Color::data->D65_rad * 0.5f;
-		//light->emission    = Color::data->D65_rad * 5.0f;
-		light->reflectance = SpectralReflectance( 0.78f );
+			MaterialLambertianSpectral* light = new MaterialLambertianSpectral;
+			light->emission    = SpectralRadiance( data[0], 400,700 ) * 200.0f;
+			//light->emission    = Color::data->D65_rad * 0.5f;
+			//light->emission    = Color::data->D65_rad * 5.0f;
+			light->reflectance = SpectralReflectance( 0.78f );
+		#else
+			MaterialLambertianRGB*      light = new MaterialLambertianRGB;
+			light->emission    = RGB_Radiance(1,1,1) * 200.0f;
+			light->reflectance = RGB_Reflectance( 0.78f );
+		#endif
+
 		result->materials["light"] = light;
 	}
-
-	#if 0
-	for (auto iter : result->materials) {
-		static_cast<MaterialLambertianSpectral*>(iter.second)->emission.   set_filter_nearest();
-		static_cast<MaterialLambertianSpectral*>(iter.second)->reflectance.set_filter_nearest();
-	}
-	#endif
 
 	{
 		//Floor
@@ -444,8 +479,13 @@ Scene* Scene::get_new_cornell_srgb() {
 	//MaterialBase* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png"); float lightsc=20.0f;
 	result->materials["srgb"] = mtl_tex;
 
-	MaterialLambertianSpectral* mtl_white1 = new MaterialLambertianSpectral;
-	mtl_white1->reflectance = SpectralReflectance( 1.0f );
+	#ifdef RENDER_MODE_SPECTRAL
+		MaterialLambertianSpectral* mtl_white1 = new MaterialLambertianSpectral;
+		mtl_white1->reflectance = SpectralReflectance( 1.0f );
+	#else
+		MaterialLambertianRGB*      mtl_white1 = new MaterialLambertianRGB;
+		mtl_white1->reflectance = RGB_Reflectance    ( 1.0f );
+	#endif
 	result->materials["white1"] = mtl_white1;
 
 	for (PrimBase* prim : result->primitives) {
@@ -456,7 +496,11 @@ Scene* Scene::get_new_cornell_srgb() {
 		else if (prim->material==result->materials["red"            ]) prim->material=mtl_tex;
 	}
 
-	static_cast<MaterialLambertianSpectral*>(result->materials["light"])->emission = Color::data->D65_rad * lightsc;
+	#ifdef RENDER_MODE_SPECTRAL
+		static_cast<MaterialLambertianSpectral*>(result->materials["light"])->emission = Color::data->D65_rad * lightsc;
+	#else
+		static_cast<MaterialLambertianRGB*     >(result->materials["light"])->emission = RGB_Radiance(1,1,1)  * lightsc;
+	#endif
 
 	return result;
 }
@@ -482,21 +526,19 @@ Scene* Scene::get_new_srgb        () {
 	}
 
 	{
-		MaterialLambertianSpectral* white_d65 = new MaterialLambertianSpectral;
-		white_d65->reflectance = SpectralReflectance(0.0f);
-		white_d65->emission = Color::data->D65_rad;// * 0.5f;
-		white_d65->emission.set_filter_nearest();
-		result->materials["light"] = white_d65;
+		#ifdef RENDER_MODE_SPECTRAL
+			MaterialLambertianSpectral* mtl_light = new MaterialLambertianSpectral;
+			mtl_light->reflectance = SpectralReflectance(0.0f);
+			mtl_light->emission = Color::data->D65_rad;// * 0.5f;
+		#else
+			MaterialLambertianRGB*      mtl_light = new MaterialLambertianRGB;
+			mtl_light->reflectance = RGB_Reflectance    (0.0f);
+			mtl_light->emission = RGB_Radiance(1,1,1);
+		#endif
+		result->materials["light"] = mtl_light;
 
 		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png");
-		Color::data->basis_bt709.r.set_filter_nearest();
-		Color::data->basis_bt709.g.set_filter_nearest();
-		Color::data->basis_bt709.b.set_filter_nearest();
 		result->materials["tex"] = mtl_tex;
-
-		Color::data->std_obs_xbar.set_filter_nearest();
-		Color::data->std_obs_ybar.set_filter_nearest();
-		Color::data->std_obs_zbar.set_filter_nearest();
 	}
 
 	{

@@ -38,6 +38,7 @@ Renderer::~Renderer() {
 }
 
 void Renderer::_print_progress() const {
+	//Prints `secs` as a count of days, hours, minutes, and seconds.
 	auto pretty_print_time = [](double secs) -> void {
 		double days  = std::floor(secs/86400.0);
 		secs -= 86400.0 * days;
@@ -56,13 +57,18 @@ void Renderer::_print_progress() const {
 	};
 
 	std::chrono::steady_clock::time_point time_now = std::chrono::steady_clock::now();
+
 	double time_since_start = static_cast<double>(
 		std::chrono::duration_cast<std::chrono::nanoseconds>(time_now-_time_start).count()
 	) * 1.0e-9;
 
+	//Fraction of the tiles that have been rendered (or are being rendered).  So, roughly the
+	//	overall fraction of the render that is completed.
 	double part = static_cast<double>(_num_tiles_start-_tiles.size()) / static_cast<double>(_num_tiles_start);
+
 	if (part<1.0) {
 		if (part>0.0) {
+			//Middle of render.  Print fraction and expected time based on a simple extrapolation.
 			double expected_time_total = time_since_start / part;
 			double expected_time_remaining = expected_time_total - time_since_start;
 			printf("\rRender %.2f%% (ETA ",part*100.0);
@@ -70,29 +76,36 @@ void Renderer::_print_progress() const {
 			printf(")           ");
 			fflush(stdout);
 		} else {
+			//Start of render.
 			printf("\rRender started                               ");
 		}
 	} else {
+		//End of render.  Print elapsed time.
 		printf("\rRender completed in ");
 		pretty_print_time(time_since_start);
 		printf(" seconds             \n");
 	}
 }
 
-CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
+#ifdef RENDER_MODE_SPECTRAL
+CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
+#else
+lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
+#endif
+{
 	//Render sample within pixel (`i`,`j`).
 
-	//TODO: comment
-	//TODO: ELS
-
-	//i=256; j=430;
-
+	//	Location within the framebuffer
 	ST framebuffer_st(
 		(static_cast<float>(i)+rand_1f(rng)) / static_cast<float>(framebuffer.res[0]),
 		(static_cast<float>(j)+rand_1f(rng)) / static_cast<float>(framebuffer.res[1])
 	);
+	//	Normalized device coordinates (to borrow OpenGL terminology)
 	glm::vec2 framebuffer_ndc = framebuffer_st*2.0f - glm::vec2(1.0f);
 
+	//	Camera ray through pixel.  This is a pinhole camera model (bad) with the framebuffer
+	//		semantically in-front of the center of projection (bogus).  Nevertheless, it is just-
+	//		about the simplest-possible camera model.
 	Dir camera_ray_dir;
 	{
 		glm::vec4 point = scene->camera.matr_PV_inv * glm::vec4( framebuffer_ndc, 0.0f, 1.0f );
@@ -100,9 +113,7 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 		camera_ray_dir = glm::normalize( Pos(point) - scene->camera.pos );
 	}
 
-	//Path tracing with explicit light sampling.
-	#define EXPLICIT_LIGHT_SAMPLING
-
+	#ifdef RENDER_MODE_SPECTRAL
 	//	Hero wavelength sampling.
 	//		First, the spectrum is divided into some number of regions.  Then, the hero wavelength
 	//			is selected randomly from the first region.
@@ -110,12 +121,24 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	//		Subsequent wavelengths are defined implicitly as multiples of `LAMBDA_STEP` above
 	//			`lambda_0`.  The vector of these wavelengths are the wavelengths that the light
 	//			transport is computed along.
+	#endif
 
+	//	Main radiance-gathering function used for recursive path tracing
+	#ifdef RENDER_MODE_SPECTRAL
 	std::function<SpectralRadiance::HeroSample(Ray const&,bool,unsigned,PrimBase const*)> L = [&](
 		Ray const& ray, bool last_was_delta, unsigned depth, PrimBase const* ignore
 	) -> SpectralRadiance::HeroSample
+	#else
+	std::function<RGB_Radiance(Ray const&,bool,unsigned,PrimBase const*)> L = [&](
+		Ray const& ray, bool last_was_delta, unsigned depth, PrimBase const* ignore
+	) -> RGB_Radiance
+	#endif
 	{
+		#ifdef RENDER_MODE_SPECTRAL
 		SpectralRadiance::HeroSample radiance(0);
+		#else
+		RGB_Radiance                 radiance(0);
+		#endif
 
 		HitRecord hitrec;
 		if (scene->intersect( ray,&hitrec, ignore )) {
@@ -124,42 +147,60 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 			//Only add if could not have been sampled on previous)
 			if (last_was_delta) {
 			#endif
-				SpectralRadiance::HeroSample emitted_radiance =
-					hitrec.prim->material->sample_emission(hitrec.st,lambda_0)
-				;
-
+				auto emitted_radiance = hitrec.prim->material->sample_emission(
+					#ifdef RENDER_MODE_SPECTRAL
+						hitrec.st, lambda_0
+					#else
+						hitrec.st
+					#endif
+				);
 				radiance += emitted_radiance;
 			#ifdef EXPLICIT_LIGHT_SAMPLING
 			}
 			#endif
 
+			//If more rays are allowed . . .
 			if (depth+1u<MAX_DEPTH) {
+				//Hit position of ray
 				Pos hit_pos = ray.at(hitrec.dist);
 
-				SpectralRecipSR::HeroSample brdf = hitrec.prim->material->sample_brdf(hitrec.st,lambda_0);
+				//BRDF at that point
+				auto brdf = hitrec.prim->material->sample_brdf(
+					#ifdef RENDER_MODE_SPECTRAL
+						hitrec.st, lambda_0
+					#else
+						hitrec.st
+					#endif
+				);
 
 				#ifdef EXPLICIT_LIGHT_SAMPLING
 				//Direct lighting
 				{
+					//Get random ray toward random light
 					Dir shad_ray_dir;
 					PrimBase const* light;
 					float shad_pdf;
+					scene->get_rand_toward_light( rng, hit_pos, &shad_ray_dir,&light,&shad_pdf );
 
-					scene->get_rand_toward_light(rng,hit_pos,&shad_ray_dir,&light,&shad_pdf);
 					float n_dot_l = glm::dot(shad_ray_dir,hitrec.normal);
 					if (n_dot_l>0.0f) {
+						//Cast the shadow ray
 						Ray ray_shad = { hit_pos, shad_ray_dir };
 						HitRecord hitrec_shad;
 						scene->intersect(ray_shad,&hitrec_shad,hitrec.prim);
-						if (hitrec_shad.prim == light) {
-							SpectralRadiance::HeroSample emitted_radiance =
-								light->material->sample_emission(hitrec_shad.st,lambda_0)
-							;
 
+						if (hitrec_shad.prim == light) {
+							//If the only thing we hit was the light we were shooting at, then we're
+							//	not shadowed.  Add the radiance contribution.
+
+							auto emitted_radiance = light->material->sample_emission(
+								#ifdef RENDER_MODE_SPECTRAL
+									hitrec.st, lambda_0
+								#else
+									hitrec.st
+								#endif
+							);
 							radiance += emitted_radiance * n_dot_l * brdf / shad_pdf;
-							//if (glm::length(radiance)>2000.0) {
- 							//	int j = 6;
-							//}
 						}
 					}
 				}
@@ -167,6 +208,7 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 
 				//Indirect lighting
 				if (glm::dot(brdf,brdf)>0.0f) {
+					//Get random recursion ray (importance-sample the geometry term)
 					float pdf_dir;
 					Dir ray_next_dir = Math::rand_coshemi(rng,&pdf_dir);
 					ray_next_dir = Math::get_rotated_to(ray_next_dir,hitrec.normal);
@@ -175,6 +217,8 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 
 					float n_dot_l = glm::dot(ray_next_dir,hitrec.normal);
 					if (n_dot_l>0.0f) {
+						//Trace the ray recursively. and use in Monte-Carlo estimate of rendering
+						//	equation.
 						radiance += L(ray_next,false,depth+1u,hitrec.prim) * n_dot_l * brdf / pdf_dir;
 					}
 				}
@@ -185,35 +229,50 @@ CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	};
 
 	Ray ray_camera = { scene->camera.pos, camera_ray_dir };
-	SpectralRadiance::HeroSample pixel_rad_est_infdepth = L(ray_camera,true,0u,nullptr);
+	auto pixel_rad_est = L(ray_camera,true,0u,nullptr);
 
 	//Value of Monte-Carlo estimator for the radiant flux incident on the pixel due to paths of any
 	//	length.
 	#ifdef FLAT_FIELD_CORRECTION
-		SpectralRadiantFlux::HeroSample pixel_flux_est_infdepth = pixel_rad_est_infdepth;
+		auto pixel_flux_est = pixel_rad_est;
 	#else
-		SpectralRadiantFlux::HeroSample pixel_flux_est_infdepth = pixel_rad_est_infdepth * glm::dot( camera_ray_dir, scene->camera.dir );
+		auto pixel_flux_est = pixel_rad_est * glm::dot( camera_ray_dir, scene->camera.dir );
 	#endif
 
-	//Convert each wavelength sample to CIE XYZ and average.
-	CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est_infdepth, lambda_0 );
+	#ifdef RENDER_MODE_SPECTRAL
+		//Convert each wavelength sample to CIE XYZ and average.
+		CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est_infdepth, lambda_0 );
 
-	return ciexyz_avg;
+		return ciexyz_avg;
+	#else
+		//Die inside.
+		return lRGB_F32(pixel_flux_est);
+	#endif
 }
 void       Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
-	//Accumulate samples into CIE XYZ instead of a spectrum (probably `SpectralRadiantFlux`).  This
-	//	way we avoid quantization artifacts and a large memory overhead per-pixel (in a more-
-	//	sophisticated renderer, the pixel data would be stored for longer, e.g. to do nontrivial
-	//	reconstruction filtering), for the (small) cost of having to do the conversion to CIE XYZ
-	//	for each sample.
+	#ifdef RENDER_MODE_SPECTRAL
+		//Accumulate samples into CIE XYZ instead of a spectrum (probably `SpectralRadiantFlux`).
+		//	This way we avoid quantization artifacts and a large memory overhead per-pixel (in a
+		//	more-sophisticated renderer, the pixel data would be stored for longer, e.g. to do
+		//	nontrivial reconstruction filtering), for the (small) cost of having to do the
+		//	conversion to CIE XYZ for each sample.
 
-	CIEXYZ_32F avg(0,0,0);
-	for (size_t k=0;k<options.spp;++k) {
-		avg += _render_sample(rng, i,j);
-	}
-	avg /= static_cast<float>(options.spp);
+		CIEXYZ_32F avg(0,0,0);
+		for (size_t k=0;k<options.spp;++k) {
+			avg += _render_sample(rng, i,j);
+		}
+		avg /= static_cast<float>(options.spp);
 
-	framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(avg), 1.0f );
+		framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(avg), 1.0f );
+	#else
+		lRGB_F32   avg(0,0,0);
+		for (size_t k=0;k<options.spp;++k) {
+			avg += _render_sample(rng, i,j);
+		}
+		avg /= static_cast<float>(options.spp);
+
+		framebuffer(i,j) = sRGB_A_F32( Color::lrgb_to_srgb  (avg), 1.0f );
+	#endif
 }
 void Renderer::_render_threadwork() {
 	//Add ourself to the count of rendering threads
