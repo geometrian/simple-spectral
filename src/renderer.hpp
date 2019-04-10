@@ -41,6 +41,11 @@ class Renderer final {
 		//Number of threads currently rendering
 		std::atomic<uint32_t> _num_rendering;
 
+		//Internal data used for calculating statistics
+		size_t _num_tiles_start;
+		std::chrono::steady_clock::time_point _time_start;
+		std::chrono::steady_clock::time_point _time_last_print;
+
 		//Whether the render should continue
 		bool volatile _render_continue;
 
@@ -49,6 +54,8 @@ class Renderer final {
 		~Renderer();
 
 	private:
+		void _print_progress() const;
+
 		//Calculate a single sample for pixel (`i`,`j`).
 		CIEXYZ_32F _render_sample(Math::RNG& rng, size_t i,size_t j);
 		//Calculate all samples for pixel (`i`,`j`) and store the reconstructed value into the

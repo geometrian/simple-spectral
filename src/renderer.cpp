@@ -37,6 +37,48 @@ Renderer::~Renderer() {
 	delete scene;
 }
 
+void Renderer::_print_progress() const {
+	auto pretty_print_time = [](double secs) -> void {
+		double days  = std::floor(secs/86400.0);
+		secs -= 86400.0 * days;
+		double hours = std::floor(secs/ 3600.0);
+		secs -=  3600.0 * hours;
+		double mins  = std::floor(secs/ 3600.0);
+		secs -=    60.0 * mins;
+
+		if (days>0.0) printf("%d days + ",static_cast<int>(days));
+		printf(
+			"%02d:%02d:%06.3f",
+			static_cast<int>(hours),
+			static_cast<int>(mins ),
+			secs
+		);
+	};
+
+	std::chrono::steady_clock::time_point time_now = std::chrono::steady_clock::now();
+	double time_since_start = static_cast<double>(
+		std::chrono::duration_cast<std::chrono::nanoseconds>(time_now-_time_start).count()
+	) * 1.0e-9;
+
+	double part = static_cast<double>(_num_tiles_start-_tiles.size()) / static_cast<double>(_num_tiles_start);
+	if (part<1.0) {
+		if (part>0.0) {
+			double expected_time_total = time_since_start / part;
+			double expected_time_remaining = expected_time_total - time_since_start;
+			printf("\rRender %.2f%% (ETA ",part*100.0);
+			pretty_print_time(expected_time_remaining);
+			printf(")           ");
+			fflush(stdout);
+		} else {
+			printf("\rRender started                               ");
+		}
+	} else {
+		printf("\rRender completed in ");
+		pretty_print_time(time_since_start);
+		printf(" seconds             \n");
+	}
+}
+
 CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j) {
 	//Render sample within pixel (`i`,`j`).
 
@@ -194,13 +236,22 @@ void Renderer::_render_threadwork() {
 	//Main render thread loop
 	while (_render_continue) {
 		//Atomically pull the next tile of un-rendered pixels off the list of un-rendered tiles.  If
-		//	there are none, terminate the loop.
-
-		//TODO: print progress
+		//	there are none, terminate the loop.  Also print the progress (inside the mutex so that
+		//	it's threadsafe) every 10ms.
 
 		Framebuffer::Tile tile;
 
+		std::chrono::steady_clock::time_point time_now = std::chrono::steady_clock::now();
+
 		_tiles_mutex.lock();
+
+		float time_since_last_print = static_cast<float>(
+			std::chrono::duration_cast<std::chrono::nanoseconds>(time_now-_time_last_print).count()
+		) * 1.0e-9f;
+		if (time_since_last_print>0.01f) {
+			_print_progress();
+			_time_last_print = time_now;
+		}
 
 		if (!_tiles.empty()) {
 			tile = _tiles.back();
@@ -234,6 +285,8 @@ void Renderer::_render_threadwork() {
 	if (_num_rendering==0u) {
 		_tiles.clear();
 
+		_print_progress();
+
 		framebuffer.save(options.output_path);
 	}
 }
@@ -250,6 +303,11 @@ void Renderer::render_start() {
 	}
 	//	TODO: describe
 	std::reverse(_tiles.begin(),_tiles.end());
+
+	//Starting information for timing
+	_num_tiles_start = _tiles.size();
+	_time_start      = std::chrono::steady_clock::now();
+	_time_last_print = _time_start - std::chrono::seconds(1);
 
 	//Create render threads (which also starts them working)
 	_num_rendering = 0u;
