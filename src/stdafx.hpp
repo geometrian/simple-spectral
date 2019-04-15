@@ -93,6 +93,13 @@
 	#endif
 #endif
 
+#ifdef SUPPORT_WINDOWED
+	//Whether to make the un-rendered pixels partially transparent.  Disabled by default because on
+	//	Windows 10, current GLFW has a bug which prevents it from working correctly:
+	//		https://github.com/glfw/glfw/issues/1237
+	//#define WITH_TRANSPARENT_FRAMEBUFFER
+#endif
+
 
 
 //Common Types
@@ -153,7 +160,7 @@ typedef lRGB_F32 RGB_Reflectance;
 namespace Constants {
 
 //	π
-//		Value is given to machine precision.
+//		Value is given to perfect machine precision with 80-bit `long double`.
 template <typename T> constexpr T pi = T(3.14159265358979323846L);
 
 //	k_B, the Boltzmann constant (J⋅K⁻¹)

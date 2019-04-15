@@ -178,7 +178,9 @@ int main(int argc, char* argv[]) {
 
 			glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-			glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+			#ifdef WITH_TRANSPARENT_FRAMEBUFFER
+				glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+			#endif
 
 			window = glfwCreateWindow(
 				static_cast<int>(options.res[0]), static_cast<int>(options.res[1]),
@@ -191,7 +193,7 @@ int main(int argc, char* argv[]) {
 
 			glfwMakeContextCurrent(window);
 			#ifdef _DEBUG
-				//glDebugMessageCallback(callback_err_gl,nullptr);
+				//glDebugMessageCallback(_callback_err_gl,nullptr);
 			#endif
 
 			//glfwSwapInterval(0);

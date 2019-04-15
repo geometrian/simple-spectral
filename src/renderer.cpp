@@ -241,7 +241,7 @@ lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 
 	#ifdef RENDER_MODE_SPECTRAL
 		//Convert each wavelength sample to CIE XYZ and average.
-		CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est_infdepth, lambda_0 );
+		CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est, lambda_0 );
 
 		return ciexyz_avg;
 	#else

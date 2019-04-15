@@ -13,11 +13,19 @@ Framebuffer::Framebuffer(size_t const res[2]) :
 	//Fill it with a checkerboard pattern
 	for (size_t j=0;j<res[1];++j) {
 		for (size_t i=0;i<res[0];++i) {
-			if (((i/TILE_SIZE)^(j/TILE_SIZE))%2==0) {
-				_pixels[j*res[0]+i] = sRGB_A_F32( 1.0f,1.0f,1.0f, 0.5f );
-			} else {
-				_pixels[j*res[0]+i] = sRGB_A_F32( 0.0f,0.0f,0.0f, 0.5f );
-			}
+			#ifdef WITH_TRANSPARENT_FRAMEBUFFER
+				if (((i/TILE_SIZE)^(j/TILE_SIZE))%2==0) {
+					_pixels[j*res[0]+i] = sRGB_A_F32( sRGB_F32(1.0f), 0.5f );
+				} else {
+					_pixels[j*res[0]+i] = sRGB_A_F32( sRGB_F32(0.0f), 0.5f );
+				}
+			#else
+				if (((i/TILE_SIZE)^(j/TILE_SIZE))%2==0) {
+					_pixels[j*res[0]+i] = sRGB_A_F32( sRGB_F32(0.7f), 1.0f );
+				} else {
+					_pixels[j*res[0]+i] = sRGB_A_F32( sRGB_F32(0.3f), 1.0f );
+				}
+			#endif
 		}
 	}
 }
