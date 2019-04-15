@@ -63,8 +63,8 @@ RGB_Reflectance                 sRGB_ReflectanceTexture::sample( ST const& st   
 
 		//Convert from UV space to index space
 		glm::vec2 index = glm::vec2(
-			           uv.x,
-			res[1]-1 - uv.y
+			         uv.x,
+			res[1] - uv.y
 		);
 
 		//Convert to integer (clamped nearest-neighbor sample)
@@ -538,7 +538,7 @@ Scene* Scene::get_new_srgb        () {
 		result->materials["light"] = mtl_light;
 
 		//MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png");
-		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/crystal-lizard-512.png");
+		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/crystal-lizard-4096.png");
 		result->materials["tex"] = mtl_tex;
 	}
 
