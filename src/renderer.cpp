@@ -44,7 +44,7 @@ void Renderer::_print_progress() const {
 		secs -= 86400.0 * days;
 		double hours = std::floor(secs/ 3600.0);
 		secs -=  3600.0 * hours;
-		double mins  = std::floor(secs/ 3600.0);
+		double mins  = std::floor(secs/   60.0);
 		secs -=    60.0 * mins;
 
 		if (days>0.0) printf("%d days + ",static_cast<int>(days));
@@ -304,15 +304,15 @@ void Renderer::_render_threadwork() {
 
 		_tiles_mutex.lock();
 
-		float time_since_last_print = static_cast<float>(
-			std::chrono::duration_cast<std::chrono::nanoseconds>(time_now-_time_last_print).count()
-		) * 1.0e-9f;
-		if (time_since_last_print>0.01f) {
-			_print_progress();
-			_time_last_print = time_now;
-		}
-
 		if (!_tiles.empty()) {
+			float time_since_last_print = static_cast<float>(
+				std::chrono::duration_cast<std::chrono::nanoseconds>(time_now-_time_last_print).count()
+			) * 1.0e-9f;
+			if (time_since_last_print>0.01f) {
+				_print_progress();
+				_time_last_print = time_now;
+			}
+
 			tile = _tiles.back();
 			_tiles.pop_back();
 
