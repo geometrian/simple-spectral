@@ -14,14 +14,21 @@ Renderer::Renderer(Options const& options) :
 	//Load the scene
 	if        (options.scene_name=="cornell"     ) {
 		scene = Scene::get_new_cornell     ();
+		#ifndef EXPLICIT_LIGHT_SAMPLING
+			fprintf(stderr,"Warning: Cornell converges much faster with ELS!\n");
+		#endif
 	} else if (options.scene_name=="cornell-srgb") {
 		scene = Scene::get_new_cornell_srgb();
-	} else if (options.scene_name=="d65sphere"   ) {
-		scene = Scene::get_new_d65sphere   ();
+		#ifndef EXPLICIT_LIGHT_SAMPLING
+			fprintf(stderr,"Warning: Cornell converges much faster with ELS!\n");
+		#endif
 	} else if (options.scene_name=="srgb"        ) {
 		scene = Scene::get_new_srgb        ();
+		#ifdef EXPLICIT_LIGHT_SAMPLING
+			fprintf(stderr,"Warning: Plane converges much faster without ELS!\n");
+		#endif
 	} else {
-		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"d65sphere\", \"srgb\")\n",options.scene_name.c_str());
+		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"srgb\")\n",options.scene_name.c_str());
 		throw -3;
 	}
 

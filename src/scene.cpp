@@ -504,11 +504,6 @@ Scene* Scene::get_new_cornell_srgb() {
 
 	return result;
 }
-Scene* Scene::get_new_d65sphere   () {
-	//TODO: this!
-	assert(false);
-	return nullptr;
-}
 Scene* Scene::get_new_srgb        () {
 	Scene* result = new Scene;
 
