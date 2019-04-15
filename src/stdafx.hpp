@@ -113,6 +113,7 @@
 #ifdef RENDER_MODE_SPECTRAL
 	//	CIE XYZ tristimulus values
 	typedef glm::vec3 CIEXYZ_32F;
+	typedef glm::vec4 CIEXYZ_A_32F;
 
 	//	Nanometers
 	typedef float nm;
@@ -131,8 +132,10 @@ typedef glm::vec3 sRGB_F32;
 //		Post-gamma RGB and linear alpha, floating-point
 typedef glm::vec4 sRGB_A_F32;
 //		Post-gamma, byte
-class sRGB_U8 final { public: uint8_t r, g, b; };
-static_assert(sizeof(sRGB_U8)==3,"Implementation error!");
+class sRGB_U8 final { public: uint8_t r, g, b;      };
+static_assert(sizeof(sRGB_U8  )==3,"Implementation error!");
+class sRGB_A_U8 final { public: uint8_t r, g, b, a; };
+static_assert(sizeof(sRGB_A_U8)==4,"Implementation error!");
 
 //	Position
 typedef glm::vec3 Pos;

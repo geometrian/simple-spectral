@@ -59,9 +59,9 @@ class Renderer final {
 
 		//Calculate a single sample for pixel (`i`,`j`).
 		#ifdef RENDER_MODE_SPECTRAL
-		CIEXYZ_32F _render_sample(Math::RNG& rng, size_t i,size_t j);
+		CIEXYZ_A_32F _render_sample(Math::RNG& rng, size_t i,size_t j);
 		#else
-		lRGB_F32   _render_sample(Math::RNG& rng, size_t i,size_t j);
+		lRGB_A_F32   _render_sample(Math::RNG& rng, size_t i,size_t j);
 		#endif
 		//Calculate all samples for pixel (`i`,`j`) and store the reconstructed value into the
 		//	framebuffer.  Called internally by the thread worker.

@@ -36,7 +36,7 @@ Framebuffer::~Framebuffer() {
 
 void Framebuffer::save(std::string const& path) const {
 	//Construct temporary buffer
-	sRGB_U8* pixels = new sRGB_U8[res[1]*res[0]];
+	sRGB_A_U8* pixels = new sRGB_A_U8[res[1]*res[0]];
 
 	//Fill it with pixels byte-quantized from the internal storage.  While we are doing that, note
 	//	we also flip the order of the scanlines so that they are from top to bottom, since this is
@@ -44,17 +44,15 @@ void Framebuffer::save(std::string const& path) const {
 	for (size_t j=0;j<res[1];++j) {
 		for (size_t i=0;i<res[0];++i) {
 			//Source and destination pixel; note vertical flip
-			sRGB_U8&          dst = pixels [(res[1]-1-j)*res[0]+i];
-			sRGB_A_F32 const& src = _pixels[          j *res[0]+i];
-
-			//Remove alpha
-			sRGB_F32 srgb = sRGB_F32( src );
+			sRGB_A_U8&        dst   = pixels [(res[1]-1-j)*res[0]+i];
+			sRGB_A_F32 const& srgba = _pixels[          j *res[0]+i];
 
 			//Convert to bytes
-			srgb = glm::clamp( 255.0f*srgb, sRGB_F32(0),sRGB_F32(255) );
-			dst.r = static_cast<uint8_t>(std::round(srgb.r));
-			dst.g = static_cast<uint8_t>(std::round(srgb.g));
-			dst.b = static_cast<uint8_t>(std::round(srgb.b));
+			sRGB_A_F32 srgba_clipped = glm::clamp( 255.0f*srgba, sRGB_A_F32(0),sRGB_A_F32(255) );
+			dst.r = static_cast<uint8_t>(std::round(srgba_clipped.r));
+			dst.g = static_cast<uint8_t>(std::round(srgba_clipped.g));
+			dst.b = static_cast<uint8_t>(std::round(srgba_clipped.b));
+			dst.a = static_cast<uint8_t>(std::round(srgba_clipped.a));
 		}
 	}
 
@@ -63,7 +61,7 @@ void Framebuffer::save(std::string const& path) const {
 		path,
 		reinterpret_cast<uint8_t*>(pixels),
 		static_cast<unsigned>(res[0]), static_cast<unsigned>(res[1]),
-		LCT_RGB
+		LCT_RGBA
 	);
 
 	//Cleanup

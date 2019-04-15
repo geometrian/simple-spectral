@@ -95,9 +95,9 @@ void Renderer::_print_progress() const {
 }
 
 #ifdef RENDER_MODE_SPECTRAL
-CIEXYZ_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
+CIEXYZ_A_32F Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 #else
-lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
+lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 #endif
 {
 	//Render sample within pixel (`i`,`j`).
@@ -131,6 +131,7 @@ lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 	#endif
 
 	//	Main radiance-gathering function used for recursive path tracing
+	bool hit_anything = false;
 	#ifdef RENDER_MODE_SPECTRAL
 	std::function<SpectralRadiance::HeroSample(Ray const&,bool,unsigned,PrimBase const*)> L = [&](
 		Ray const& ray, bool last_was_delta, unsigned depth, PrimBase const* ignore
@@ -149,6 +150,8 @@ lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 
 		HitRecord hitrec;
 		if (scene->intersect( ray,&hitrec, ignore )) {
+			hit_anything = true;
+
 			//Emission
 			#ifdef EXPLICIT_LIGHT_SAMPLING
 			//Only add if could not have been sampled on previous)
@@ -250,10 +253,10 @@ lRGB_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 		//Convert each wavelength sample to CIE XYZ and average.
 		CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est, lambda_0 );
 
-		return ciexyz_avg;
+		return CIEXYZ_A_32F( ciexyz_avg, hit_anything?1.0f:0.0f );
 	#else
 		//Die inside.
-		return lRGB_F32(pixel_flux_est);
+		return lRGB_A_F32  ( pixel_flux_est, hit_anything?1.0f:0.0f );
 	#endif
 }
 void       Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
@@ -264,21 +267,21 @@ void       Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
 		//	nontrivial reconstruction filtering), for the (small) cost of having to do the
 		//	conversion to CIE XYZ for each sample.
 
-		CIEXYZ_32F avg(0,0,0);
+		CIEXYZ_A_32F avg( 0,0,0, 0 );
 		for (size_t k=0;k<options.spp;++k) {
 			avg += _render_sample(rng, i,j);
 		}
 		avg /= static_cast<float>(options.spp);
 
-		framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(avg), 1.0f );
+		framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(CIEXYZ_32F(avg)), avg.a );
 	#else
-		lRGB_F32   avg(0,0,0);
+		lRGB_A_F32   avg( 0,0,0, 0 );
 		for (size_t k=0;k<options.spp;++k) {
 			avg += _render_sample(rng, i,j);
 		}
 		avg /= static_cast<float>(options.spp);
 
-		framebuffer(i,j) = sRGB_A_F32( Color::lrgb_to_srgb  (avg), 1.0f );
+		framebuffer(i,j) = sRGB_A_F32( Color::lrgb_to_srgb  (lRGB_F32  (avg)), avg.a );
 	#endif
 }
 void Renderer::_render_threadwork() {
