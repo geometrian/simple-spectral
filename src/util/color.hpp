@@ -4,10 +4,6 @@
 
 #include "../spectrum.hpp"
 
-#ifdef RENDER_MODE_SPECTRAL_MENG
-	#include "../meng-et-al.-2015/spectrum_grid.h"
-#endif
-
 
 
 namespace Color {
@@ -18,17 +14,6 @@ namespace Color {
 
 //Encapsulates color data required by the renderer.
 struct _Data final {
-	//CIE standard illuminant D65.
-	//	The original data has no radiometric meaning, since its intensity has been normalized by the
-	//		CIE so that at wavelength 560nm, the value is exactly "100.0".
-	SpectrumUnspecified D65_orig;
-	//	However, we can scale the values so that the intensity represents spectral radiance by using
-	//		Planck's law.  Since the output color space (BT.709) is normalized to D65 anyway,
-	//		normalizing is not important for correctness.  However, we prefer it because it makes
-	//		the values computing during path tracing have physical meaning in-terms of real-world
-	//		units.
-	SpectralRadiance    D65_rad;
-
 	//CIE standard observer functions "x̄(λ)", "ȳ(λ)", and "z̄(λ)".  These are spectral data, computed
 	//	as a linear transformation of the CIE RGB color matching functions, which themselves are
 	//	based off of perceptual user studies.  They underpin the CIE XYZ color space which links
@@ -36,6 +21,19 @@ struct _Data final {
 	SpectrumUnspecified std_obs_xbar;
 	SpectrumUnspecified std_obs_ybar;
 	SpectrumUnspecified std_obs_zbar;
+
+	//CIE standard illuminant D65.
+	//	The original data has no radiometric meaning, since its intensity has been normalized by the
+	//		CIE so that at wavelength 560nm, the value is exactly "100.0".
+	SpectrumUnspecified D65_orig;
+	CIEXYZ_32F          D65_orig_XYZ;
+	//	However, we can scale the values so that the intensity represents spectral radiance by using
+	//		Planck's law.  Since the output color space (BT.709) is normalized to D65 anyway,
+	//		normalizing is not important for correctness.  However, we prefer it because it makes
+	//		the values computing during path tracing have physical meaning in-terms of real-world
+	//		units.
+	SpectralRadiance    D65_rad;
+	CIEXYZ_32F          D65_rad_XYZ;
 
 	//Basis for spectral reflectance computed using our algorithm.  Given any BT.709 "(R,G,B)"
 	//	triple that is linear (pre-gamma) and normalized (in the range "[0,1]"), i.e., ℓRGB ("linear
@@ -139,10 +137,7 @@ inline CIEXYZ_32F specradflux_to_ciexyz(SpectralRadiantFlux::HeroSample const& s
 SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0);
 
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
-inline sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
-	lRGB_F32 lrgb = data->matr_XYZtoRGB * xyz;
-	return lrgb_to_srgb(lrgb);
-}
+sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz);
 
 #endif
 
