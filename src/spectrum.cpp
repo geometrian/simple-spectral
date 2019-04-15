@@ -109,8 +109,8 @@ float _Spectrum::integrate(_Spectrum const& spec0, _Spectrum const& spec1) {
 	std::sort(sample_pts.begin(),sample_pts.end());
 
 	//Integrate by trapezoidal rule, which will be exact regardless of whether the functions are
-	//	taken to be defined with nearest or linear reconstruction, since the functions we touch
-	//	every sample point of both spectra.
+	//	taken to be defined with nearest or linear reconstruction, since the functions touch every
+	//	sample point of both spectra.
 	float result = 0.0f;
 	for (size_t i=0;i<sample_pts.size()-1;++i) {
 		nm const& lambda_low  = sample_pts[i  ];

@@ -537,7 +537,8 @@ Scene* Scene::get_new_srgb        () {
 		#endif
 		result->materials["light"] = mtl_light;
 
-		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png");
+		//MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/test-img.png");
+		MaterialLambertianTexture* mtl_tex = new MaterialLambertianTexture("data/scenes/crystal-lizard-512.png");
 		result->materials["tex"] = mtl_tex;
 	}
 

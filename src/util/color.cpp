@@ -78,8 +78,11 @@ void   init() {
 		//	new value over the old.  This produces a slightly hotter temperature.
 		temp_d65 *= (Constants::h<float> * Constants::c<float> / Constants::k_B<float>) / 1.438e-2f;
 
-		assert(data->D65_orig[560_nm][0]==100.0f); //TODO
-		//Factor of "100" to scale back to "1", and factor of "1000" to convert from "W" to "kW".
+		//Convert D65 to a radiometric version (spectral radiance) instead of a spectrum normalized
+		//	arbitrarily to 100 at 560nm.  There's no technical reason to do this (the numbers work
+		//	out either way), but doing it means that we're tracing units with a physical meaning.  
+		assert(data->D65_orig[560_nm][0]==100.0f);
+		//	Factor of "100" to scale back to "1", and factor of "1000" to convert from "W" to "kW".
 		data->D65_rad = data->D65_orig * ( 0.00001f * _planck(560_nm,temp_d65) );
 	}
 
@@ -137,6 +140,35 @@ void   init() {
 void deinit() {
 	delete data;
 }
+
+
+
+#if   defined RENDER_MODE_SPECTRAL_OURS
+SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0) {
+	return SpectralReflectance::HeroSample(
+		lrgb.r * data->basis_bt709.r[lambda_0] +
+		lrgb.g * data->basis_bt709.g[lambda_0] +
+		lrgb.b * data->basis_bt709.b[lambda_0]
+	);
+}
+#elif defined RENDER_MODE_SPECTRAL_MENG
+SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0) {
+	//This is the matrix Meng et al. have in their code.  The scaling by 100 seems to be necessary,
+	//	I guess because they normalized Y of D65 to 1 or something.
+	CIEXYZ_32F xyz = glm::transpose(glm::mat3x3(
+		 0.41231515f, 0.3576f, 0.1805f,
+		 0.2126f,     0.7152f, 0.0722f,
+		 0.01932727f, 0.1192f, 0.95063333f
+	)) * 100.0f*lrgb;
+
+	SpectralReflectance::HeroSample result;
+	for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) {
+		result[i] = spectrum_xyz_to_p( lambda_0+i*LAMBDA_STEP, &xyz[0] );
+	}
+
+	return result;
+}
+#endif
 
 
 

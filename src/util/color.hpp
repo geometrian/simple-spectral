@@ -4,6 +4,10 @@
 
 #include "../spectrum.hpp"
 
+#ifdef RENDER_MODE_SPECTRAL_MENG
+	#include "../meng-et-al.-2015/spectrum_grid.h"
+#endif
+
 
 
 namespace Color {
@@ -132,13 +136,7 @@ inline CIEXYZ_32F specradflux_to_ciexyz(SpectralRadiantFlux::HeroSample const& s
 //	surface of that reflectance will appear as that RGB triple on the screen; see paper for
 //	details).  The conversion is just a linear combination of three basis spectra with the triple's
 //	values as weights.
-inline SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0) {
-	return SpectralReflectance::HeroSample(
-		lrgb.r * data->basis_bt709.r[lambda_0] +
-		lrgb.g * data->basis_bt709.g[lambda_0] +
-		lrgb.b * data->basis_bt709.b[lambda_0]
-	);
-}
+SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0);
 
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
 inline sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {

@@ -56,9 +56,15 @@
 //	Epsilon, used for a variety of numerical tests.
 #define EPS 0.001f
 
-//	Whether to use spectral rendering (correct) or RGB mode (what many people do instead).
-#if 0
+//	Whether to use spectral rendering (correct), and if so which variant to use (our paper or the
+//		work by Meng et al.) or RGB mode (what many people do instead).
+#if 1
 	#define RENDER_MODE_SPECTRAL
+	#if 1
+		#define RENDER_MODE_SPECTRAL_OURS
+	#else
+		#define RENDER_MODE_SPECTRAL_MENG
+	#endif
 #else
 	#define RENDER_MODE_RGB
 #endif
