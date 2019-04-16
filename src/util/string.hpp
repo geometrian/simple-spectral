@@ -12,6 +12,17 @@ inline bool contains(std::string const& main, std::string const& test) {
 	return main.find(test) != std::string::npos;
 }
 
+inline bool startswith(std::string const& main, std::string const& test) {
+	return main.compare( 0,test.size(), test ) == 0;
+}
+inline bool endswith  (std::string const& main, std::string const& test) {
+	if (main.length()>=test.length()) {
+		return main.compare( main.length()-test.length(),test.length(), test ) == 0;
+	} else {
+		return false;
+	}
+}
+
 inline std::vector<std::string> split(std::string const& main, std::string const& test, size_t max_splits=~size_t(0)) {
 	std::vector<std::string> result;
 	size_t num_splits = 0;
