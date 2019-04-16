@@ -36,6 +36,7 @@ Renderer::Renderer(Options const& options) :
 
 	//Allocate space for threads
 	#if 0
+		fprintf(stderr,"Warning: only using one thread!\n");
 		_threads.resize(1);
 	#else
 		_threads.resize(std::thread::hardware_concurrency());

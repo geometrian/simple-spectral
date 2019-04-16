@@ -61,7 +61,6 @@ class _Spectrum final {
 		//Compute the integral of the spectrum with respect to wavelength.
 		static float integrate(_Spectrum const& spec                         );
 		static float integrate(_Spectrum const& spec0, _Spectrum const& spec1);
-		//static _HeroSample integrate_sub(_Spectrum const& spec);
 };
 
 //Spectral radiance (note units: kW·sr⁻¹·m⁻²·nm⁻¹)

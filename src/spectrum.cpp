@@ -174,38 +174,6 @@ float _Spectrum::integrate(_Spectrum const& spec0, _Spectrum const& spec1) {
 	return result;
 }
 
-//TODO: remove as-necessary
-#if 0
-Spectrum::_HeroSample _Spectrum::integrate_sub(Spectrum const& spec) {
-	Sample result(0);
-	nm step = 1.0f / spec._sc;
-
-	for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) {
-		nm low  = spec._low +  i   *LAMBDA_STEP;
-		nm high = spec._low + (i+1)*LAMBDA_STEP;
-
-		nm lambda = low;
-		if (i<SAMPLE_WAVELENGTHS-1) {
-			while (lambda< high) {
-				result[i] += spec._sample_nearest(lambda);
-				lambda += step;
-			}
-		} else {
-			while (lambda<=high) {
-				result[i] += spec._sample_nearest(lambda);
-				lambda += step;
-			}
-		}
-	}
-
-	return result;
-}
-float _Spectrum::integrate(_Spectrum const& spec0, _Spectrum const& spec1) {
-
-	
-}
-#endif
-
 
 
 std::vector<std::vector<float>> load_spectral_data(std::string const& csv_path) {
