@@ -19,7 +19,7 @@ namespace Color {
 //	avoid roundoff error and take into account any updated data.  The algorithm is simple, anyway.
 //	This code was directly inspired from:
 //		http://brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
-static glm::mat3x3 _calc_matr_RGBtoXYZ(
+static glm::mat3x3 _calc_matr_rgb_to_xyz(
 	glm::vec2 const& xy_r, glm::vec2 const& xy_g, glm::vec2 const& xy_b,
 	glm::vec3 const& XYZ_W
 ) {
@@ -137,11 +137,11 @@ void   init() {
 
 	//Calculate RGB to XYZ (and vice-versa) conversion matrices.
 	{
-		data->matr_RGBtoXYZ = _calc_matr_RGBtoXYZ(
+		data->matr_lrgb_to_xyz = _calc_matr_rgb_to_xyz(
 			glm::vec2(0.64f,0.33f), glm::vec2(0.30f,0.60f), glm::vec2(0.15f,0.06f), //BT.709
 			data->D65_rad_XYZ
 		);
-		data->matr_XYZtoRGB = glm::inverse(data->matr_RGBtoXYZ);
+		data->matr_xyz_to_lrgb = glm::inverse(data->matr_lrgb_to_xyz);
 	}
 }
 void deinit() {
@@ -192,7 +192,9 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 
 #if   defined RENDER_MODE_SPECTRAL_OURS
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
-	lRGB_F32 lrgb = data->matr_XYZtoRGB * xyz;
+	lRGB_F32 lrgb = ciexyz_to_lrgb(xyz);
+	sRGB_F32 srgb = lrgb_to_srgb(lrgb);
+	sRGB_F32 srgb255 = 255.0f*srgb;
 	return lrgb_to_srgb(lrgb);
 }
 #elif defined RENDER_MODE_SPECTRAL_MENG
@@ -236,7 +238,7 @@ lRGB_F32 round_trip_lrgb(lRGB_F32 const& lrgb) {
 
 	//	Viewer-perceived ℓRGB value of D65 reflecting off our surface.  Hopefully this matches the
 	//		input, `lrgb`!
-	lRGB_F32 lrgb_out = data->matr_XYZtoRGB * xyz_out;
+	lRGB_F32 lrgb_out = ciexyz_to_lrgb(xyz_out);
 
 	//	Return value
 	return lrgb_out;

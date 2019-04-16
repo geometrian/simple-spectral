@@ -181,7 +181,8 @@ int main(int argc, char* argv[]) {
 
 			//	By Monte Carlo integration
 			{
-				auto test_round_trip_mc = [](lRGB_F32 const& lrgb_in, size_t count) -> void {
+				Math::RNG rng;
+				auto test_round_trip_mc = [&](lRGB_F32 const& lrgb_in, size_t count) -> void {
 					SpectralReflectance reflectance = 
 						Color::data->basis_bt709.r * lrgb_in.r +
 						Color::data->basis_bt709.g * lrgb_in.g +
@@ -197,7 +198,6 @@ int main(int argc, char* argv[]) {
 					#endif
 
 					//Note accumulating must be into a 64-bit value for enough precision.
-					Math::RNG rng;
 					CIEXYZ_64F xyz_out(0);
 					for (size_t k=0;k<count;++k) {
 						nm lambda_0 = LAMBDA_MIN + Math::rand_1f(rng)*LAMBDA_STEP;
@@ -207,13 +207,12 @@ int main(int argc, char* argv[]) {
 					}
 					xyz_out /= static_cast<double>(count);
 
-					lRGB_F32 lrgb_out = Color::data->matr_XYZtoRGB * xyz_out;
+					lRGB_F32 lrgb_out = Color::ciexyz_to_lrgb(xyz_out);
 
 					//Put a breakpoint here with your debugger to check the values.
 					int j = 6;
 				};
-				test_round_trip_mc( lRGB_F32( 1, 0, 1 ), 1'000'000 );
-				//test_round_trip_mc( lRGB_F32( 1, 0, 1 ), 10'000'000 );
+				test_round_trip_mc( lRGB_F32( 0, 1, 1 ), 65536 );
 			}
 		}
 		#endif

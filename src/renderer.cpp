@@ -81,7 +81,7 @@ void Renderer::_print_progress() const {
 			//Middle of render.  Print fraction and expected time based on a simple extrapolation.
 			double expected_time_total = time_since_start / part;
 			double expected_time_remaining = expected_time_total - time_since_start;
-			printf("\rRender %.2f%% (ETA ",part*100.0);
+			printf("\rRender %.3f%% (ETA ",part*100.0);
 			pretty_print_time(expected_time_remaining);
 			printf(")           ");
 			fflush(stdout);
@@ -277,16 +277,15 @@ void       Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
 		for each sample.
 
 		Note accumulating must be into a 64-bit value is necessary to have adequate precision for
-		high sample counts.  We could (should, in a more-sophisticated renderer) also scale the
-		values before accumulating them to keep the precision in a better range, but finding the
-		right scaling might be tricky to figure out.
+		high sample counts.  We also scale the values before accumulating them to keep the precision
+		in a better range.
 		*/
 
 		CIEXYZ_A_64F avg( 0,0,0, 0 );
 		for (size_t k=0;k<options.spp;++k) {
-			avg += _render_sample(rng, i,j);
+			avg += _render_sample(rng, i,j) * 0.001f;
 		}
-		avg /= static_cast<double>(options.spp);
+		avg *= 1000.0 / static_cast<double>(options.spp);
 
 		framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(CIEXYZ_32F(avg)), avg.a );
 	#else

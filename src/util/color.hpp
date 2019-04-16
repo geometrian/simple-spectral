@@ -52,9 +52,9 @@ struct _Data final {
 	} basis_bt709;
 
 	//Conversion matrix from BT.709 RGB to CIE XYZ
-	glm::mat3x3 matr_RGBtoXYZ;
+	glm::mat3x3 matr_lrgb_to_xyz;
 	//Conversion matrix from CIE XYZ to BT.709 ℓRGB
-	glm::mat3x3 matr_XYZtoRGB;
+	glm::mat3x3 matr_xyz_to_lrgb;
 };
 extern struct _Data* data;
 
@@ -135,6 +135,14 @@ inline CIEXYZ_32F specradflux_to_ciexyz(SpectralRadiantFlux::HeroSample const& s
 //	details).  The conversion is just a linear combination of three basis spectra with the triple's
 //	values as weights.
 SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0);
+
+//Conversion from/to CIE XYZ to/from linear (pre-gamma), normalized BT.709 RGB.
+inline lRGB_F32 ciexyz_to_lrgb(CIEXYZ_32F const& xyz) {
+	return data->matr_xyz_to_lrgb * xyz;
+}
+inline lRGB_F32 lrgb_to_ciexyz(CIEXYZ_32F const& xyz) {
+	return data->matr_lrgb_to_xyz * xyz;
+}
 
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz);
