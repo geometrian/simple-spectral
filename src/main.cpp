@@ -44,8 +44,10 @@ inline static void _print_usage() {
 		"          Set the number of samples per pixel.\n"
 		"    `--output=<output-image-path>\n`/`-o=<output-image-path>`\n"
 		"          Set the path to the output image.\n"
-		#ifdef SUPPORT_WINDOWED
 		"  Optional arguments:\n"
+		"    `--indirect-only`/`-io`\n"
+		"          Render only indirect illumination.\n"
+		#ifdef SUPPORT_WINDOWED
 		"    `--window`/`-w`\n"
 		"          Opens a window to display the ongoing render.\n"
 		#endif
@@ -115,6 +117,21 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 	} catch (int) {
 		fprintf(stderr,"Invalid number of samples!\n");
 		throw;
+	}
+
+	std::string str_indonly;
+	try {
+		str_indonly = get_arg("--indirect-only", "-io");
+		options->indirect_only = true;
+	} catch (...) {
+		options->indirect_only = false;
+	}
+	if (options->indirect_only) {
+		if (str_indonly=="--indirect-only");
+		else {
+			fprintf(stderr,"`--indirect-only`/`-io` does not take a value!\n");
+			throw -1;
+		}
 	}
 
 	options->output_path = get_arg_req("--output", "-o");

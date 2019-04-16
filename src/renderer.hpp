@@ -19,6 +19,8 @@ class Renderer final {
 			size_t res[2]; //Resolution of image
 			size_t spp;    //Samples per pixel
 
+			bool indirect_only; //Whether only indirect illumination should be rendered
+
 			std::string output_path;
 
 			#ifdef SUPPORT_WINDOWED

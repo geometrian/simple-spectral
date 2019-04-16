@@ -161,7 +161,7 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 			//Emission
 			#ifdef EXPLICIT_LIGHT_SAMPLING
 			//Only add if could not have been sampled on previous)
-			if (last_was_delta) {
+			if (last_was_delta&&(!options.indirect_only||depth>0u)) {
 			#endif
 				auto emitted_radiance = hitrec.prim->material->evaluate_emission( hitrec.st, SPECTRAL_ONLY(lambda_0 COMMA) -ray.dir );
 				radiance += emitted_radiance;
@@ -176,7 +176,7 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 
 				#ifdef EXPLICIT_LIGHT_SAMPLING
 				//Direct lighting
-				{
+				if (!options.indirect_only||depth>0u) {
 					//Get random ray toward random light
 					Dir shad_ray_dir;
 					PrimBase const* light;
