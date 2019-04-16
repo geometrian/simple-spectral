@@ -106,7 +106,7 @@ bool MaterialBase::is_emissive() const {
 }
 
 
-MaterialLambertian::~MaterialLambertian() {
+MaterialSimpleAlbedoBase::~MaterialSimpleAlbedoBase() {
 	#ifdef RENDER_MODE_SPECTRAL
 		if (mode==MODE::CONSTANT) delete albedo.constant;
 		else                      delete albedo.texture;
@@ -114,6 +114,7 @@ MaterialLambertian::~MaterialLambertian() {
 		delete albedo.texture;
 	#endif
 }
+
 
 void MaterialLambertian::evaluate_bsdf(struct BSDF_Evaluation*  evaluation ) const /*override*/ {
 	#ifdef RENDER_MODE_SPECTRAL
@@ -136,4 +137,27 @@ void MaterialLambertian::interact_bsdf(struct BSDF_Interaction* interaction) con
 		interaction->f_s = albedo.texture->sample(interaction->st);
 	#endif
 	interaction->f_s /= Constants::pi<float>;
+}
+
+
+void MaterialMirror::evaluate_bsdf(struct BSDF_Evaluation*  evaluation ) const /*override*/ {
+	//Impossible to hit a Dirac δ function.
+	#ifdef RENDER_MODE_SPECTRAL
+		evaluation->f_s = SpectralRadiance::HeroSample(0.0f);
+	#else
+		evaluation->f_s = RGB_RecipSR                 (0.0f);
+	#endif
+}
+void MaterialMirror::interact_bsdf(struct BSDF_Interaction* interaction) const /*override*/ {
+	//Importance-sample the Dirac δ function
+	interaction->w_i = Math::reflect(interaction->w_o,interaction->N);
+	interaction->pdf_w_i = INF;
+
+	//Note: value represents a Dirac δ function.
+	#ifdef RENDER_MODE_SPECTRAL
+		if (mode==MODE::CONSTANT) interaction->f_s=(*albedo.constant      )[                interaction->lambda_0];
+		else                      interaction->f_s=  albedo.texture->sample(interaction->st,interaction->lambda_0);
+	#else
+		interaction->f_s = albedo.texture->sample(interaction->st);
+	#endif
 }

@@ -112,8 +112,9 @@ class MaterialBase {
 		bool is_emissive() const;
 };
 
-//Lambertian material
-class MaterialLambertian final : public MaterialBase {
+//Material with a simple albedo that can be either a constant (spectrum or RGB, determined by the
+//	rendering mode) or keyed by an sRGB texture.
+class MaterialSimpleAlbedoBase : public MaterialBase {
 	public:
 		enum MODE { CONSTANT, TEXTURE } const mode;
 		union Albedo final {
@@ -135,22 +136,43 @@ class MaterialLambertian final : public MaterialBase {
 			Albedo(sRGB_ReflectanceTexture const* other) : texture(new sRGB_ReflectanceTexture(*other)) {}
 		} albedo;
 
-	public:
-		//Lambertian material with emission (default zeros) and reflectance (default ones).
-		         MaterialLambertian(                       ) :
-			mode(MODE::CONSTANT), albedo(    )
-		{}
-		//Lambertian material with emission (default zeros) and spectral reflectance given by image
-		//	loaded from sRGB texture specified by `path`.
-		explicit MaterialLambertian(std::string const& path) :
-			mode(MODE::TEXTURE ), albedo(path)
-		{}
-		MaterialLambertian(MaterialLambertian const& other) :
+	protected:
+		//Constant albedo
+		         MaterialSimpleAlbedoBase(                                     ) : mode(MODE::CONSTANT), albedo(    ) {}
+		//Albedo keyed by sRGB texture
+		explicit MaterialSimpleAlbedoBase(std::string              const& path ) : mode(MODE::TEXTURE ), albedo(path) {}
+		//Copy from another material
+		         MaterialSimpleAlbedoBase(MaterialSimpleAlbedoBase const& other) :
 			mode(other.mode), albedo(mode==MODE::CONSTANT?Albedo(other.albedo.constant):Albedo(other.albedo.texture))
 		{}
-		virtual ~MaterialLambertian();
-
 	public:
+		virtual ~MaterialSimpleAlbedoBase();
+};
+
+//Lambertian material
+class MaterialLambertian final : public MaterialSimpleAlbedoBase {
+	public:
+		//Lambertian material with emission (default zeros) and reflectance (default ones).
+		MaterialLambertian(                       ) : MaterialSimpleAlbedoBase(    ) {}
+		//Lambertian material with emission (default zeros) and spectral reflectance given by image
+		//	loaded from sRGB texture specified by `path`.
+		MaterialLambertian(std::string const& path) : MaterialSimpleAlbedoBase(path) {}
+		virtual ~MaterialLambertian() = default;
+
+		virtual void evaluate_bsdf(struct BSDF_Evaluation*  evaluation ) const override;
+		virtual void interact_bsdf(struct BSDF_Interaction* interaction) const override;
+};
+
+//Mirror material
+class MaterialMirror final : public MaterialSimpleAlbedoBase {
+	public:
+		//Lambertian material with emission (default zeros) and reflectance (default ones).
+		MaterialMirror(                       ) : MaterialSimpleAlbedoBase(    ) {}
+		//Lambertian material with emission (default zeros) and spectral reflectance given by image
+		//	loaded from sRGB texture specified by `path`.
+		MaterialMirror(std::string const& path) : MaterialSimpleAlbedoBase(path) {}
+		virtual ~MaterialMirror() = default;
+
 		virtual void evaluate_bsdf(struct BSDF_Evaluation*  evaluation ) const override;
 		virtual void interact_bsdf(struct BSDF_Interaction* interaction) const override;
 };

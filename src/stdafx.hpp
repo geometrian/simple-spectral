@@ -244,7 +244,9 @@ constexpr inline size_t operator""_zu(unsigned long long x) { return static_cast
 //	Needed for technical reasons when using certain macros
 #define COMMA ,
 
+//	Constants.  TODO: move to `Constants::`?
 #define qNaN std::numeric_limits<float>::quiet_NaN()
+#define INF  std::numeric_limits<float>::infinity();
 
 #ifdef RENDER_MODE_SPECTRAL
 	//	The size of the wavelength band each wavelength in a hero sample is responsible for

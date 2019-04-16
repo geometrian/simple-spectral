@@ -347,7 +347,9 @@ Scene* Scene::get_new_srgb        () {
 		#endif
 		result->materials["light"] = mtl_light;
 
-		MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/test-img.png");
+		//Either `MaterialMirror` or `MaterialLambertian` produces the same results, but the mirror
+		//	converges much faster because the ray direction is not a random variable.
+		MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/test-img.png");
 		//MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-4096.png");
 		result->materials["tex"] = mtl_tex;
 	}
@@ -422,7 +424,7 @@ void Scene::get_rand_toward_light(Math::RNG& rng, Pos const& from, Dir* dir,Prim
 
 bool Scene::intersect(Ray const& ray, HitRecord* hitrec, PrimBase const* ignore/*=nullptr*/) const {
 	hitrec->prim = nullptr;
-	hitrec->dist = std::numeric_limits<float>::infinity();
+	hitrec->dist = INF;
 
 	bool hit = false;
 	for (PrimBase const* prim : primitives) {

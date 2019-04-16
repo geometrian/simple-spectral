@@ -221,7 +221,17 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 				//	Recurse in sampled direction if BSDF is nonzero
 				if (glm::dot(sampbsdf.f_s,sampbsdf.f_s)>0.0f) {
 					//	And if the direction has nonzero contribution via the geometry term.
-					float n_dot_l = glm::dot(sampbsdf.w_i,hitrec.normal);
+					float n_dot_l;
+					if (std::isfinite(sampbsdf.pdf_w_i)) {
+						n_dot_l = glm::dot(sampbsdf.w_i,hitrec.normal);
+					} else {
+						//		Dirac δ function.  BSDFs that are δ functions are posed with an
+						//			inverse geometry term so that it cancels out in the rendering
+						//			equation.  Instead of doing that, it's more numerically precise
+						//			to just ignore the geometry term entirely.
+						n_dot_l = 1.0f;
+						sampbsdf.pdf_w_i = 1.0f;
+					}
 					if (n_dot_l>0.0f) {
 						//Trace the ray recursively and use in Monte-Carlo estimate of rendering
 						//	equation.

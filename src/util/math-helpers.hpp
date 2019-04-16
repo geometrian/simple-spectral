@@ -37,6 +37,10 @@ inline Dir get_rotated_to(Dir const& dir, Dir const& normal) {
 	return dir.x*basis_x + dir.y*normal + dir.z*basis_z;
 }
 
+inline Dir reflect(Dir const& vec, Dir const& normal) {
+	return -vec + 2.0f*glm::dot(vec,normal)*normal;
+}
+
 
 
 }
