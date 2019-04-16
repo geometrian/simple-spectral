@@ -65,24 +65,40 @@
 	#else
 		#define RENDER_MODE_SPECTRAL_MENG
 	#endif
-#else
-	#define RENDER_MODE_RGB
-#endif
 
-#ifdef RENDER_MODE_SPECTRAL
-	//	The CIE observer standard to use.  The 1931 version is the CIE 1931 2° standard observer,
-	//		and the 2006 version is the CIE 2006 10° standard observer.  The former is based on
-	//		1920s experiments and is well-established.  The latter is based on updated data, a wider
-	//		field of view, and a denser sampling.  The latter is probably what one should be using.
+	//		The CIE observer standard to use.  The 1931 version is the CIE 1931 2° standard
+	//			observer, and the 2006 version is the CIE 2006 10° standard observer.  The former is
+	//			based on 1920s experiments and is well-established.  The latter is based on updated
+	//			data, a wider field of view, and a denser sampling.  The latter is probably what one
+	//			should be using.
 	#if 0
 		#define CIE_OBSERVER 1931
 	#else
 		#define CIE_OBSERVER 2006
 	#endif
 
-	//	Number of wavelengths sampled by a single sample.  When more than one is used, hero
-	//		wavelength sampling is done.
+	//		Number of wavelengths sampled by a single sample.  When more than one is used, hero
+	//			wavelength sampling is done.
 	#define SAMPLE_WAVELENGTHS 4_zu
+#else
+	#define RENDER_MODE_RGB
+#endif
+
+#ifdef SUPPORT_WINDOWED
+	//Whether to make the un-rendered pixels partially transparent.  Disabled by default because on
+	//	Windows 10, current GLFW has a bug which prevents it from working correctly:
+	//		https://github.com/glfw/glfw/issues/1237
+	//#define WITH_TRANSPARENT_FRAMEBUFFER
+#endif
+
+
+
+//Computed values
+
+#ifdef RENDER_MODE_SPECTRAL
+	#if defined RENDER_MODE_SPECTRAL_MENG && CIE_OBSERVER!=1931
+		#error "Meng et al. only support the CIE 1931 standard observer!"
+	#endif
 
 	//	Shortest and longest wavelengths, in nanometers, considered during the rendering.  It only
 	//		makes sense to sample wavelengths where the observer can see anything (and maybe then,
@@ -97,13 +113,6 @@
 	#else
 		#error "Implementation error!"
 	#endif
-#endif
-
-#ifdef SUPPORT_WINDOWED
-	//Whether to make the un-rendered pixels partially transparent.  Disabled by default because on
-	//	Windows 10, current GLFW has a bug which prevents it from working correctly:
-	//		https://github.com/glfw/glfw/issues/1237
-	//#define WITH_TRANSPARENT_FRAMEBUFFER
 #endif
 
 
@@ -232,7 +241,17 @@ constexpr inline size_t operator""_zu(unsigned long long x) { return static_cast
 
 //Helpful macros
 
+//	Needed for technical reasons when using certain macros
+#define COMMA ,
+
+#define qNaN std::numeric_limits<float>::quiet_NaN()
+
 #ifdef RENDER_MODE_SPECTRAL
 	//	The size of the wavelength band each wavelength in a hero sample is responsible for
 	#define LAMBDA_STEP ( (LAMBDA_MAX-LAMBDA_MIN) / static_cast<nm>(SAMPLE_WAVELENGTHS) )
+
+	//	Code that's only present when doing spectral rendering
+	#define SPECTRAL_ONLY(CODE) CODE
+#else
+	#define SPECTRAL_ONLY(CODE)
 #endif

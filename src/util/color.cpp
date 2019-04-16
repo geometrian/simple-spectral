@@ -174,9 +174,9 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 	*/
 
 	CIEXYZ_32F xyz_rel = glm::transpose(glm::mat3x3(
-		 0.41231515f, 0.3576f, 0.1805f,
-		 0.2126f,     0.7152f, 0.0722f,
-		 0.01932727f, 0.1192f, 0.95063333f
+		0.41231515f, 0.3576f, 0.1805f,
+		0.2126f,     0.7152f, 0.0722f,
+		0.01932727f, 0.1192f, 0.95063333f
 	)) * 100.0f * lrgb;
 
 	SpectralReflectance::HeroSample result;
@@ -201,9 +201,9 @@ sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	//	consistency.  See also comments in `lrgb_to_specrefl(...)`.
 	CIEXYZ_32F xyz_rel = xyz / data->D65_rad_XYZ.y;
 	lRGB_F32 lrgb = glm::transpose(glm::mat3x3(
-			3.24156456f, -1.53766524f, -0.49870224f,
+		 3.24156456f, -1.53766524f, -0.49870224f,
 		-0.96920119f,  1.87588535f,  0.04155324f,
-			0.05562416f, -0.20395525f,  1.05685902f
+		 0.05562416f, -0.20395525f,  1.05685902f
 	)) * xyz_rel;
 	return lrgb_to_srgb(lrgb);
 }

@@ -3,6 +3,8 @@
 #include "util/color.hpp"
 #include "util/math-helpers.hpp"
 
+#include "geometry.hpp"
+#include "material.hpp"
 #include "scene.hpp"
 
 
@@ -157,13 +159,7 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 			//Only add if could not have been sampled on previous)
 			if (last_was_delta) {
 			#endif
-				auto emitted_radiance = hitrec.prim->material->sample_emission(
-					#ifdef RENDER_MODE_SPECTRAL
-						hitrec.st, lambda_0
-					#else
-						hitrec.st
-					#endif
-				);
+				auto emitted_radiance = hitrec.prim->material->evaluate_emission( hitrec.st, SPECTRAL_ONLY(lambda_0 COMMA) -ray.dir );
 				radiance += emitted_radiance;
 			#ifdef EXPLICIT_LIGHT_SAMPLING
 			}
@@ -173,15 +169,6 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 			if (depth+1u<MAX_DEPTH) {
 				//Hit position of ray
 				Pos hit_pos = ray.at(hitrec.dist);
-
-				//BRDF at that point
-				auto brdf = hitrec.prim->material->sample_brdf(
-					#ifdef RENDER_MODE_SPECTRAL
-						hitrec.st, lambda_0
-					#else
-						hitrec.st
-					#endif
-				);
 
 				#ifdef EXPLICIT_LIGHT_SAMPLING
 				//Direct lighting
@@ -203,33 +190,43 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 							//If the only thing we hit was the light we were shooting at, then we're
 							//	not shadowed.  Add the radiance contribution.
 
-							auto emitted_radiance = light->material->sample_emission(
-								#ifdef RENDER_MODE_SPECTRAL
-									hitrec.st, lambda_0
-								#else
-									hitrec.st
-								#endif
+							//	Emitted radiance
+							auto emitted_radiance = hitrec_shad.prim->material->evaluate_emission(
+								hitrec_shad.st, SPECTRAL_ONLY(lambda_0 COMMA) -shad_ray_dir
 							);
-							radiance += emitted_radiance * n_dot_l * brdf / shad_pdf;
+
+							//	Evaluation of BSDF
+							struct MaterialBase::BSDF_Evaluation evalbsdf = {
+								hitrec.st, SPECTRAL_ONLY(lambda_0 COMMA)
+								-ray.dir, hitrec.normal, shad_ray_dir,
+								{}
+							};
+							hitrec.prim->material->evaluate_bsdf(&evalbsdf);
+
+							//	Monte Carlo radiance estimate
+							radiance += emitted_radiance * n_dot_l * evalbsdf.f_s / shad_pdf;
 						}
 					}
 				}
 				#endif
 
 				//Indirect lighting
-				if (glm::dot(brdf,brdf)>0.0f) {
-					//Get random recursion ray (importance-sample the geometry term)
-					float pdf_dir;
-					Dir ray_next_dir = Math::rand_coshemi(rng,&pdf_dir);
-					ray_next_dir = Math::get_rotated_to(ray_next_dir,hitrec.normal);
-
-					Ray ray_next = { hit_pos, ray_next_dir };
-
-					float n_dot_l = glm::dot(ray_next_dir,hitrec.normal);
+				//	Random sample from BSDF
+				struct MaterialBase::BSDF_Interaction sampbsdf = {
+					hitrec.st, SPECTRAL_ONLY(lambda_0 COMMA)
+					-ray.dir, hitrec.normal, Dir(qNaN), qNaN, rng,
+					{}
+				};
+				hitrec.prim->material->interact_bsdf(&sampbsdf);
+				//	Recurse in sampled direction if BSDF is nonzero
+				if (glm::dot(sampbsdf.f_s,sampbsdf.f_s)>0.0f) {
+					//	And if the direction has nonzero contribution via the geometry term.
+					float n_dot_l = glm::dot(sampbsdf.w_i,hitrec.normal);
 					if (n_dot_l>0.0f) {
-						//Trace the ray recursively. and use in Monte-Carlo estimate of rendering
+						//Trace the ray recursively and use in Monte-Carlo estimate of rendering
 						//	equation.
-						radiance += L(ray_next,false,depth+1u,hitrec.prim) * n_dot_l * brdf / pdf_dir;
+						Ray ray_next = { hit_pos, sampbsdf.w_i };
+						radiance += L(ray_next,false,depth+1u,hitrec.prim) * n_dot_l * sampbsdf.f_s / sampbsdf.pdf_w_i;
 					}
 				}
 			}
