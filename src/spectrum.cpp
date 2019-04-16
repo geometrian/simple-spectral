@@ -25,7 +25,7 @@ _Spectrum::_Spectrum(std::vector<float> const& data, nm low,nm high) :
 	_delta_lambda_recip = denom / numer;
 }
 
-//TODO: optimize!
+//TODO: these can be optimized using the shuffling technique we mention in the paper.
 float _Spectrum::_sample_nearest(nm lambda) const {
 	float i_f = (lambda-_low)*_delta_lambda_recip;
 	i_f = std::round(i_f);
@@ -37,8 +37,6 @@ float _Spectrum::_sample_nearest(nm lambda) const {
 	return 0.0f;
 }
 float _Spectrum::_sample_linear (nm lambda) const {
-	//This could definitely be optimized.
-
 	float i = (lambda-_low)*_delta_lambda_recip;
 	float i0f = std::floor(i);
 	float frac = i - i0f;

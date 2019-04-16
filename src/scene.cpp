@@ -13,17 +13,17 @@ Scene::~Scene() {
 	for (PrimBase const* iter : primitives) delete iter;
 }
 
-//TODO: comment
-
 void Scene::_init() {
+	//Compute camera matrices.
 	camera.matr_P = glm::perspectiveFov(
-		glm::radians(camera.fov),
+		glm::radians(camera.vfov_deg),
 		static_cast<float>(camera.res[0]), static_cast<float>(camera.res[1]),
 		camera.near, camera.far
 	);
 	camera.matr_V = glm::lookAt( camera.pos, camera.pos+camera.dir, camera.up );
 	camera.matr_PV_inv = glm::inverse( camera.matr_P * camera.matr_V );
 
+	//Make a list of all the lights so that we can sample them later.
 	for (PrimBase* prim : primitives) {
 		if (prim->is_light) lights.emplace_back(prim);
 	}
@@ -41,10 +41,9 @@ Scene* Scene::get_new_cornell     () {
 		result->camera.res[0] = 512;
 		result->camera.res[1] = 512;
 		result->camera.near=0.1f; result->camera.far=1.0f;
-		result->camera.fov = 39.0f;
-		//result->camera.focal = 0.035f;
-
-		//size?
+		result->camera.vfov_deg = 39.0f;
+		//focal = 0.035f;
+		//size
 	}
 
 	{
@@ -320,7 +319,7 @@ Scene* Scene::get_new_cornell_srgb() {
 
 	return result;
 }
-Scene* Scene::get_new_srgb        () {
+Scene* Scene::get_new_plane_srgb  () {
 	Scene* result = new Scene;
 
 	{
@@ -332,15 +331,14 @@ Scene* Scene::get_new_srgb        () {
 		result->camera.res[0] = 512;
 		result->camera.res[1] = 512;
 		result->camera.near=0.1f; result->camera.far=1.0f;
-		result->camera.fov = glm::degrees(2.0f*std::atan2( 1.0f, result->camera.pos.z ));
-		//result->camera.fov = 45.0f;
+		result->camera.vfov_deg = glm::degrees(2.0f*std::atan2( 1.0f, result->camera.pos.z ));
 	}
 
 	{
 		MaterialLambertian* mtl_light = new MaterialLambertian;
 		#ifdef RENDER_MODE_SPECTRAL
 			*mtl_light->albedo.constant = SpectralReflectance(0.0f);
-			 mtl_light->emission = Color::data->D65_rad;// * 0.5f;
+			 mtl_light->emission = Color::data->D65_rad;
 		#else
 			 mtl_light->albedo.constant = RGB_Reflectance    (0.0f);
 			 mtl_light->emission = RGB_Radiance(1,1,1);
@@ -349,8 +347,11 @@ Scene* Scene::get_new_srgb        () {
 
 		//Either `MaterialMirror` or `MaterialLambertian` produces the same results, but the mirror
 		//	converges much faster because the ray direction is not a random variable.
-		MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/test-img.png");
-		//MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-4096.png");
+		#if 1 //Lizard texture
+			MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/crystal-lizard-4096.png");
+		#else //A helpful 64⨯64 test image I made
+			MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/test-img.png");
+		#endif
 		result->materials["tex"] = mtl_tex;
 	}
 

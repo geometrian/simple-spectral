@@ -24,13 +24,16 @@ Renderer::Renderer(Options const& options) :
 		#ifndef EXPLICIT_LIGHT_SAMPLING
 			fprintf(stderr,"Warning: Cornell converges much faster with ELS!\n");
 		#endif
-	} else if (options.scene_name=="srgb"        ) {
-		scene = Scene::get_new_srgb        ();
+	} else if (options.scene_name=="plane-srgb"  ) {
+		scene = Scene::get_new_plane_srgb  ();
 		#ifdef EXPLICIT_LIGHT_SAMPLING
 			fprintf(stderr,"Warning: Plane converges much faster without ELS!\n");
 		#endif
 	} else {
-		fprintf(stderr,"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"srgb\")\n",options.scene_name.c_str());
+		fprintf(stderr,
+			"Unrecognized scene \"%s\"!  (Supported scenes: \"cornell\", \"cornell-srgb\", \"plane-srgb\")\n",
+			options.scene_name.c_str()
+		);
 		throw -3;
 	}
 
@@ -384,7 +387,8 @@ void Renderer::render_start() {
 			});
 		}
 	}
-	//	TODO: describe
+	//	Rearrange so that the lower tiles are at the end of the list (and thereby are pulled off and
+	//		rendered first).
 	std::reverse(_tiles.begin(),_tiles.end());
 
 	//Starting information for timing

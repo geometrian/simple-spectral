@@ -9,6 +9,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+#set(CMAKE_SUPPRESS_REGENERATION true)
+
 set_property( DIRECTORY PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME} )
 
 option(SUPPORT_WINDOWED "Support a windowed mode to show progress (req. GLFW)" ON)
@@ -18,7 +21,7 @@ message(STATUS "GLM at ${GLM_INCLUDE_DIR}")
 include_directories(${GLM_INCLUDE_DIRS})
 set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} ${GLM_LIBRARIES})
 
-if (SUPPORT_WINDOWED)
+if(SUPPORT_WINDOWED)
 	add_definitions("-DSUPPORT_WINDOWED")
 
 	find_package(OpenGL REQUIRED)
@@ -30,9 +33,9 @@ if (SUPPORT_WINDOWED)
 	set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} ${GLFW3_LIBRARY})
 
 	set(WINDOW_ARG " --window")
-else (SUPPORT_WINDOWED)
+else()
 	set(WINDOW_ARG "")
-endif (SUPPORT_WINDOWED)
+endif()
 #message(STATUS "${WINDOW_ARG}")
 
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.hpp* ${CMAKE_SOURCE_DIR}/src/*.h* ${CMAKE_SOURCE_DIR}/src/*.cpp*)
@@ -48,10 +51,15 @@ endforeach()
 
 #set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_COMMAND "${CMAKE_RUNTIME_OUTPUT_DIRECTORY}${PROJECT_NAME}" )
 set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_COMMAND_ARGUMENTS
-	"--scene=cornell -w=512 -h=512 -spp=1 --output=output.png${WINDOW_ARG}"
+	"--scene=cornell-srgb -w=512 -h=512 -spp=64 --output=output.png${WINDOW_ARG}"
 )
 set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY
 	"${CMAKE_SOURCE_DIR}"
 )
+
+if("${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
+	#No, Microsoft, the standard library is *not* deprecated.
+	add_definitions("-D_CRT_SECURE_NO_WARNINGS")
+endif()
 
 target_link_libraries(${PROJECT_NAME} ${EXTERNAL_LIBRARIES})

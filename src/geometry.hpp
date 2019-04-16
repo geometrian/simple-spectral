@@ -6,16 +6,23 @@
 
 
 
-//TODO: comment
-
 class MaterialBase;
+
+
 
 class Vertex final {
 	public:
+		//Vertex coordinate
 		Pos pos;
+
+		//ST texture coordinate
+		//	Note: if you expected UV, see the definition of `ST` for explanation.
 		ST st;
 };
 
+
+
+//Encapsulates a geometric primitive
 class PrimBase {
 	public:
 		enum class TYPE {
@@ -36,11 +43,15 @@ class PrimBase {
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const = 0;
 
+		//Get a random direction `dir` from `from` toward the primitive.  The probability density of
+		//	choosing this direction is returned in `pdf`.
 		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const = 0;
 
 		virtual SphereBound get_bound() const = 0;
 };
 
+
+//Triangle primitive
 class PrimTri final : public PrimBase {
 	public:
 		Vertex verts[3];
@@ -60,23 +71,14 @@ class PrimTri final : public PrimBase {
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const override;
 
-		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override {
-			Math::SphericalTriangle tri(
-				glm::normalize( verts[0].pos - from ),
-				glm::normalize( verts[1].pos - from ),
-				glm::normalize( verts[2].pos - from )
-			);
-			*dir = Math::rand_toward_sphericaltri( rng, tri );
-			*pdf = 1.0f / tri.surface_area;
-		}
+		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override;
 
-		virtual SphereBound get_bound() const override {
-			Pos centroid = (verts[0].pos+verts[1].pos+verts[2].pos)*(1.0f/3.0f);
-			float max_dist = 0.0f;
-			for (size_t i=0;i<3;++i) max_dist=std::max(max_dist,glm::length(verts[i].pos-centroid));
-			return { centroid, max_dist };
-		}
+		virtual SphereBound get_bound() const override;
 };
+
+//Quadrilateral primitive
+//	Note: should be planar (or else must update `.intersect(...)`).
+//	Implemented as two triangle primitives, although some operations can be optimized slightly.
 class PrimQuad final : public PrimBase {
 	public:
 		PrimTri tri0;
@@ -96,19 +98,7 @@ class PrimQuad final : public PrimBase {
 
 		virtual bool intersect(Ray const& ray, HitRecord* hitrec) const override;
 
-		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override {
-			( rand_1f(rng)<=0.5f ? tri0 : tri1 ).get_rand_toward(rng,from,dir,pdf);
-			*pdf *= 0.5f;
-		}
+		virtual void get_rand_toward(Math::RNG& rng, Pos const& from, Dir* dir,float* pdf) const override;
 
-		virtual SphereBound get_bound() const override {
-			Pos centroid = (tri0.verts[0].pos+tri0.verts[1].pos+tri0.verts[2].pos+tri1.verts[2].pos)*0.25f;
-			float max_dist = std::max({
-				glm::length(tri0.verts[0].pos-centroid),
-				glm::length(tri0.verts[1].pos-centroid),
-				glm::length(tri0.verts[2].pos-centroid),
-				glm::length(tri1.verts[2].pos-centroid)
-			});
-			return { centroid, max_dist };
-		}
+		virtual SphereBound get_bound() const override;
 };

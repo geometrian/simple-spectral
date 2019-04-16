@@ -119,8 +119,6 @@ Dir rand_toward_sphericaltri(RNG& rng, SphericalTriangle const& tri) {
 	} else {
 		//Triangle is degenerate.  However, this allows us to compute the desired cosine by
 		//	interpolating the angle linearly.
-		//	TODO: we should be able to simplify the following in this case; in-particular, `r1`
-		//		is no longer necessary.
 		q = cos( tri.b * r0 );
 	}
 	q = glm::clamp( q, -1.0f,1.0f ); //Numerical issues
