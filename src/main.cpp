@@ -142,99 +142,113 @@ inline static void _parse_arguments( char const*const argv[],size_t length, Rend
 }
 
 int main(int argc, char* argv[]) {
-	//Attempt to parse arguments for render
-	Renderer::Options options;
-	try {
-		_parse_arguments( argv,static_cast<size_t>(argc), &options );
-	} catch (int) {
-		_print_usage();
-		return -1;
-	}
-
-	#ifdef RENDER_MODE_SPECTRAL
-	//Initialize color data
-	Color::init();
+	#if defined _WIN32 && defined _DEBUG
+		_CrtSetDbgFlag(0xFFFFFFFF);
 	#endif
 
-	//Create renderer
-	Renderer renderer(options);
-	#ifdef SUPPORT_WINDOWED
-	if (options.open_window) {
-		//Set up window and rendering parameters
-		GLFWwindow* window;
-		{
-			#ifdef _DEBUG
-				glfwSetErrorCallback(_callback_err_glfw);
-			#endif
-
-			glfwInit();
-
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
-			#ifdef _DEBUG
-				glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-			#endif
-
-			glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
-
-			#ifdef WITH_TRANSPARENT_FRAMEBUFFER
-				glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
-			#endif
-
-			window = glfwCreateWindow(
-				static_cast<int>(options.res[0]), static_cast<int>(options.res[1]),
-				"simple-spectral",
-				nullptr,
-				nullptr
-			);
-
-			glfwSetKeyCallback(window, _callback_key);
-
-			glfwMakeContextCurrent(window);
-			#ifdef _DEBUG
-				//glDebugMessageCallback(_callback_err_gl,nullptr);
-			#endif
-
-			//glfwSwapInterval(0);
-
-			glEnable(GL_BLEND);
-			glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+	{
+		//Attempt to parse arguments for render
+		Renderer::Options options;
+		try {
+			_parse_arguments( argv,static_cast<size_t>(argc), &options );
+		} catch (int) {
+			_print_usage();
+			return -1;
 		}
 
-		//Start rendering
-		renderer.render_start();
+		#ifdef RENDER_MODE_SPECTRAL
+		//Initialize color data
+		Color::init();
+		#endif
 
-		//Display loop for the ongoing or completed render
-		while (!glfwWindowShouldClose(window)) {
-			glfwPollEvents();
+		//Create renderer
+		Renderer renderer(options);
+		#ifdef SUPPORT_WINDOWED
+		if (options.open_window) {
+			//Set up window and rendering parameters
+			GLFWwindow* window;
+			{
+				#ifdef _DEBUG
+					glfwSetErrorCallback(_callback_err_glfw);
+				#endif
 
-			renderer.framebuffer.draw();
+				glfwInit();
 
-			glfwSwapBuffers(window);
+				glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
+				glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+				#ifdef _DEBUG
+					glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+				#endif
+
+				glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+
+				#ifdef WITH_TRANSPARENT_FRAMEBUFFER
+					glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_TRUE);
+				#endif
+
+				window = glfwCreateWindow(
+					static_cast<int>(options.res[0]), static_cast<int>(options.res[1]),
+					"simple-spectral",
+					nullptr,
+					nullptr
+				);
+
+				glfwSetKeyCallback(window, _callback_key);
+
+				glfwMakeContextCurrent(window);
+				#ifdef _DEBUG
+					//glDebugMessageCallback(_callback_err_gl,nullptr);
+				#endif
+
+				//glfwSwapInterval(0);
+
+				glEnable(GL_BLEND);
+				glBlendFunc(GL_SRC_ALPHA,GL_ONE_MINUS_SRC_ALPHA);
+			}
+
+			//Start rendering
+			renderer.render_start();
+
+			//Display loop for the ongoing or completed render
+			while (!glfwWindowShouldClose(window)) {
+				glfwPollEvents();
+
+				renderer.framebuffer.draw();
+
+				glfwSwapBuffers(window);
+			}
+
+			//Stop the renderer if it hasn't been already.
+			renderer.render_stop();
+			renderer.render_wait();
+
+			//Clean up
+			glfwDestroyWindow(window);
+
+			glfwTerminate();
+		} else {
+		#endif
+			//Start rendering
+			renderer.render_start();
+
+			//Wait for completion
+			renderer.render_wait ();
+		#ifdef SUPPORT_WINDOWED
 		}
+		#endif
 
-		//Stop the renderer if it hasn't been already.
-		renderer.render_stop();
-		renderer.render_wait();
-
-		//Clean up
-		glfwDestroyWindow(window);
-
-		glfwTerminate();
-	} else {
-	#endif
-		//Start rendering
-		renderer.render_start();
-
-		//Wait for completion
-		renderer.render_wait ();
-	#ifdef SUPPORT_WINDOWED
+		#ifdef RENDER_MODE_SPECTRAL
+		//Clean up color data
+		Color::deinit();
+		#endif
 	}
-	#endif
 
-	#ifdef RENDER_MODE_SPECTRAL
-	//Clean up color data
-	Color::deinit();
+	#if defined _WIN32 && defined _DEBUG
+		if (_CrtDumpMemoryLeaks()) {
+			fprintf(stderr,"Memory leaks detected!\n");
+			printf("Press ENTER to exit.\n");
+			getchar();
+		}
 	#endif
 
 	//Return to OS
