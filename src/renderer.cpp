@@ -17,17 +17,17 @@ Renderer::Renderer(Options const& options) :
 	if        (options.scene_name=="cornell"     ) {
 		scene = Scene::get_new_cornell     ();
 		#ifndef EXPLICIT_LIGHT_SAMPLING
-			fprintf(stderr,"Warning: Cornell converges much faster with ELS!\n");
+			fprintf(stderr,"Warning: Cornell converges much faster with explicit light sampling!  (See \"stdafx.hpp\" to enable.)\n");
 		#endif
 	} else if (options.scene_name=="cornell-srgb") {
 		scene = Scene::get_new_cornell_srgb();
 		#ifndef EXPLICIT_LIGHT_SAMPLING
-			fprintf(stderr,"Warning: Cornell converges much faster with ELS!\n");
+			fprintf(stderr,"Warning: Cornell converges much faster with explicit light sampling!  (See \"stdafx.hpp\" to enable.)\n");
 		#endif
 	} else if (options.scene_name=="plane-srgb"  ) {
 		scene = Scene::get_new_plane_srgb  ();
 		#ifdef EXPLICIT_LIGHT_SAMPLING
-			fprintf(stderr,"Warning: Plane converges much faster without ELS!\n");
+			fprintf(stderr,"Warning: Plane converges much faster without explicit light sampling!  (See \"stdafx.hpp\" to disable.)\n");
 		#endif
 	} else {
 		fprintf(stderr,
@@ -229,7 +229,7 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 					if (std::isfinite(sampbsdf.pdf_w_i)) {
 						n_dot_l = glm::dot(sampbsdf.w_i,hitrec.normal);
 					} else {
-						//		Dirac δ function.  BSDFs that are δ functions are posed with an
+						//		Dirac δ function.  BSDFs that are δ functions are posed having an
 						//			inverse geometry term so that it cancels out in the rendering
 						//			equation.  Instead of doing that, it's more numerically precise
 						//			to just ignore the geometry term entirely.

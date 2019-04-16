@@ -21,7 +21,7 @@ namespace Color {
 //		http://brucelindbloom.com/index.html?Eqn_RGB_XYZ_Matrix.html
 static glm::mat3x3 _calc_matr_rgb_to_xyz(
 	glm::vec2 const& xy_r, glm::vec2 const& xy_g, glm::vec2 const& xy_b,
-	glm::vec3 const& XYZ_W
+	CIEXYZ_32F const& XYZ_W
 ) {
 	glm::vec3 x_rgb( xy_r.x, xy_g.x, xy_b.x );
 	glm::vec3 y_rgb( xy_r.y, xy_g.y, xy_b.y );

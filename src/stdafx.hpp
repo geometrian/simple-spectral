@@ -39,7 +39,7 @@
 
 //	(Note also usage of user-defined literals, defined below.)
 
-//	Use explicit light sampling when path tracing.
+//	Use explicit light sampling (ELS) when path tracing.
 #define EXPLICIT_LIGHT_SAMPLING
 
 //	Maximum depth of path trace integrator (including shadow rays).

@@ -288,9 +288,8 @@ Scene* Scene::get_new_cornell     () {
 Scene* Scene::get_new_cornell_srgb() {
 	Scene* result = Scene::get_new_cornell();
 
-	//MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/allrgb-512.png"); float lightsc=40.0f;
-	MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-512.png"); float lightsc=30.0f;
-	//MaterialLambertian* mtl_tex = new MaterialLambertian("data/scenes/test-img.png"); float lightsc=20.0f;
+	MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-512.png"); float lightsc=30.0f;
+	//MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/test-img.png"); float lightsc=20.0f;
 	result->materials["srgb"] = mtl_tex;
 
 	MaterialLambertian* mtl_white1 = new MaterialLambertian;
@@ -302,10 +301,8 @@ Scene* Scene::get_new_cornell_srgb() {
 	result->materials["white1"] = mtl_white1;
 
 	for (PrimBase* prim : result->primitives) {
-		if      (prim->material==result->materials["white-back"     ]) prim->material=mtl_tex;
-		else if (prim->material==result->materials["white-blocks"   ]) prim->material=mtl_white1;
+		if      (prim->material==result->materials["white-blocks"   ]) prim->material=mtl_white1;
 		else if (prim->material==result->materials["white-floorceil"]) prim->material=mtl_white1;
-		else if (prim->material==result->materials["green"          ]) prim->material=mtl_white1;
 		else if (prim->material==result->materials["red"            ]) prim->material=mtl_tex;
 	}
 
