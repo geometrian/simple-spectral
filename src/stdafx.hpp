@@ -121,8 +121,10 @@
 
 #ifdef RENDER_MODE_SPECTRAL
 	//	CIE XYZ tristimulus values
-	typedef glm::vec3 CIEXYZ_32F;
-	typedef glm::vec4 CIEXYZ_A_32F;
+	typedef glm:: vec3 CIEXYZ_32F;
+	typedef glm::dvec3 CIEXYZ_64F;
+	typedef glm:: vec4 CIEXYZ_A_32F;
+	typedef glm::dvec4 CIEXYZ_A_64F;
 
 	//	Nanometers
 	typedef float nm;
@@ -134,15 +136,19 @@
 #endif
 
 //	BT.709 color
-//		Linear (pre-gamma), floating-point
-typedef glm::vec3 lRGB_F32;
-//		Post-gamma, floating-point
-typedef glm::vec3 sRGB_F32;
+//		Linear (pre-gamma) RGB, floating-point
+typedef glm::vec3  lRGB_F32;
+//		Linear (pre-gamma) RGB and linear alpha, floating-point
+typedef glm:: vec4 lRGB_A_F32;
+typedef glm::dvec4 lRGB_A_F64;
+//		Post-gamma RGB, floating-point
+typedef glm:: vec3 sRGB_F32;
 //		Post-gamma RGB and linear alpha, floating-point
-typedef glm::vec4 sRGB_A_F32;
-//		Post-gamma, byte
+typedef glm:: vec4 sRGB_A_F32;
+//		Post-gamma RGB, byte
 class sRGB_U8 final { public: uint8_t r, g, b;      };
 static_assert(sizeof(sRGB_U8  )==3,"Implementation error!");
+//		Post-gamma RGB and linear alpha, byte
 class sRGB_A_U8 final { public: uint8_t r, g, b, a; };
 static_assert(sizeof(sRGB_A_U8)==4,"Implementation error!");
 

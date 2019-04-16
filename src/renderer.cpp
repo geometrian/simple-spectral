@@ -269,25 +269,32 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 }
 void       Renderer::_render_pixel (Math::RNG& rng, size_t i,size_t j) {
 	#ifdef RENDER_MODE_SPECTRAL
-		//Accumulate samples into CIE XYZ instead of a spectrum (probably `SpectralRadiantFlux`).
-		//	This way we avoid quantization artifacts and a large memory overhead per-pixel (in a
-		//	more-sophisticated renderer, the pixel data would be stored for longer, e.g. to do
-		//	nontrivial reconstruction filtering), for the (small) cost of having to do the
-		//	conversion to CIE XYZ for each sample.
+		/*
+		Accumulate samples into CIE XYZ instead of a spectrum (probably `SpectralRadiantFlux`).
+		This way we avoid quantization artifacts and a large memory overhead per-pixel (in a more-
+		sophisticated renderer, the pixel data would be stored for longer, e.g. to do nontrivial
+		reconstruction filtering), for the (small) cost of having to do the conversion to CIE XYZ
+		for each sample.
 
-		CIEXYZ_A_32F avg( 0,0,0, 0 );
+		Note accumulating must be into a 64-bit value is necessary to have adequate precision for
+		high sample counts.  We could (should, in a more-sophisticated renderer) also scale the
+		values before accumulating them to keep the precision in a better range, but finding the
+		right scaling might be tricky to figure out.
+		*/
+
+		CIEXYZ_A_64F avg( 0,0,0, 0 );
 		for (size_t k=0;k<options.spp;++k) {
 			avg += _render_sample(rng, i,j);
 		}
-		avg /= static_cast<float>(options.spp);
+		avg /= static_cast<double>(options.spp);
 
 		framebuffer(i,j) = sRGB_A_F32( Color::ciexyz_to_srgb(CIEXYZ_32F(avg)), avg.a );
 	#else
-		lRGB_A_F32   avg( 0,0,0, 0 );
+		lRGB_A_F64   avg( 0,0,0, 0 );
 		for (size_t k=0;k<options.spp;++k) {
 			avg += _render_sample(rng, i,j);
 		}
-		avg /= static_cast<float>(options.spp);
+		avg /= static_cast<double>(options.spp);
 
 		framebuffer(i,j) = sRGB_A_F32( Color::lrgb_to_srgb  (lRGB_F32  (avg)), avg.a );
 	#endif

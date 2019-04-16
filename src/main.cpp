@@ -162,21 +162,59 @@ int main(int argc, char* argv[]) {
 		#endif
 
 		//Round-trip error test/demonstration
-		#if 0
+		#if 0 && defined RENDER_MODE_SPECTRAL
 		{
-			Color::round_trip_lrgb(lRGB_F32( 1,0,1 ));
+			//	By integration
+			{
+				lRGB_F32 black   = Color::round_trip_lrgb(lRGB_F32( 0, 0, 0 ));
+				lRGB_F32 blue    = Color::round_trip_lrgb(lRGB_F32( 0, 0, 1 ));
+				lRGB_F32 green   = Color::round_trip_lrgb(lRGB_F32( 0, 1, 0 ));
+				lRGB_F32 cyan    = Color::round_trip_lrgb(lRGB_F32( 0, 1, 1 ));
+				lRGB_F32 red     = Color::round_trip_lrgb(lRGB_F32( 1, 0, 0 ));
+				lRGB_F32 magenta = Color::round_trip_lrgb(lRGB_F32( 1, 0, 1 ));
+				lRGB_F32 yellow  = Color::round_trip_lrgb(lRGB_F32( 1, 1, 0 ));
+				lRGB_F32 white   = Color::round_trip_lrgb(lRGB_F32( 1, 1, 1 ));
 
-			lRGB_F32 black   = Color::round_trip_lrgb(lRGB_F32( 0, 0, 0 ));
-			lRGB_F32 blue    = Color::round_trip_lrgb(lRGB_F32( 0, 0, 1 ));
-			lRGB_F32 green   = Color::round_trip_lrgb(lRGB_F32( 0, 1, 0 ));
-			lRGB_F32 cyan    = Color::round_trip_lrgb(lRGB_F32( 0, 1, 1 ));
-			lRGB_F32 red     = Color::round_trip_lrgb(lRGB_F32( 1, 0, 0 ));
-			lRGB_F32 magenta = Color::round_trip_lrgb(lRGB_F32( 1, 0, 1 ));
-			lRGB_F32 yellow  = Color::round_trip_lrgb(lRGB_F32( 1, 1, 0 ));
-			lRGB_F32 white   = Color::round_trip_lrgb(lRGB_F32( 1, 1, 1 ));
+				//Put a breakpoint here with your debugger to check the values.
+				int j = 6;
+			}
 
-			//Put a breakpoint here with your debugger to check the values.
-			int j = 6;
+			//	By Monte Carlo integration
+			{
+				auto test_round_trip_mc = [](lRGB_F32 const& lrgb_in, size_t count) -> void {
+					SpectralReflectance reflectance = 
+						Color::data->basis_bt709.r * lrgb_in.r +
+						Color::data->basis_bt709.g * lrgb_in.g +
+						Color::data->basis_bt709.b * lrgb_in.b
+					;
+
+					SpectralRadiance radiance = Color::data->D65_rad * reflectance;
+					#ifdef FLAT_FIELD_CORRECTION
+						//Assume viewing plane perpendicular to incoming ray, or correction is done by sensor
+						SpectralRadiantFlux const& flux = radiance;
+					#else
+						assert(false);
+					#endif
+
+					//Note accumulating must be into a 64-bit value for enough precision.
+					Math::RNG rng;
+					CIEXYZ_64F xyz_out(0);
+					for (size_t k=0;k<count;++k) {
+						nm lambda_0 = LAMBDA_MIN + Math::rand_1f(rng)*LAMBDA_STEP;
+						SpectralRadiantFlux::HeroSample sample = flux[lambda_0];
+						CIEXYZ_32F xyz = Color::specradflux_to_ciexyz( sample, lambda_0 );
+						xyz_out += xyz;
+					}
+					xyz_out /= static_cast<double>(count);
+
+					lRGB_F32 lrgb_out = Color::data->matr_XYZtoRGB * xyz_out;
+
+					//Put a breakpoint here with your debugger to check the values.
+					int j = 6;
+				};
+				test_round_trip_mc( lRGB_F32( 1, 0, 1 ), 1'000'000 );
+				//test_round_trip_mc( lRGB_F32( 1, 0, 1 ), 10'000'000 );
+			}
 		}
 		#endif
 

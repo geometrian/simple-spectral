@@ -129,8 +129,8 @@ class MaterialSimpleAlbedoBase : public MaterialBase {
 			Albedo(                                ) : constant(new SpectralReflectance    (1.0f  )) {}
 			Albedo(SpectralReflectance const* other) : constant(new SpectralReflectance    (*other)) {}
 		#else
-			Albedo(                                ) : rgb     (    RGB_Reflectance        (1.0f  )) {}
-			Albedo(RGB_Reflectance const& other    ) : rgb     (    RGB_Reflectance        ( other)) {}
+			Albedo(                                ) : constant(    RGB_Reflectance        (1.0f  )) {}
+			Albedo(RGB_Reflectance const& other    ) : constant(    RGB_Reflectance        ( other)) {}
 		#endif
 			Albedo(std::string             const& path ) : texture(new sRGB_ReflectanceTexture(path  )) {}
 			Albedo(sRGB_ReflectanceTexture const* other) : texture(new sRGB_ReflectanceTexture(*other)) {}

@@ -121,7 +121,8 @@ void MaterialLambertian::evaluate_bsdf(struct BSDF_Evaluation*  evaluation ) con
 		if (mode==MODE::CONSTANT) evaluation->f_s=(*albedo.constant      )[               evaluation->lambda_0];
 		else                      evaluation->f_s=  albedo.texture->sample(evaluation->st,evaluation->lambda_0);
 	#else
-		evaluation->f_s = albedo.texture->sample(evaluation->st);
+		if (mode==MODE::CONSTANT) evaluation->f_s=albedo.constant;
+		else                      evaluation->f_s=albedo.texture->sample(evaluation->st);
 	#endif
 	evaluation->f_s /= Constants::pi<float>;
 }
@@ -134,7 +135,8 @@ void MaterialLambertian::interact_bsdf(struct BSDF_Interaction* interaction) con
 		if (mode==MODE::CONSTANT) interaction->f_s=(*albedo.constant      )[                interaction->lambda_0];
 		else                      interaction->f_s=  albedo.texture->sample(interaction->st,interaction->lambda_0);
 	#else
-		interaction->f_s = albedo.texture->sample(interaction->st);
+		if (mode==MODE::CONSTANT) interaction->f_s=albedo.constant;
+		else                      interaction->f_s=albedo.texture->sample(interaction->st);
 	#endif
 	interaction->f_s /= Constants::pi<float>;
 }
@@ -158,6 +160,7 @@ void MaterialMirror::interact_bsdf(struct BSDF_Interaction* interaction) const /
 		if (mode==MODE::CONSTANT) interaction->f_s=(*albedo.constant      )[                interaction->lambda_0];
 		else                      interaction->f_s=  albedo.texture->sample(interaction->st,interaction->lambda_0);
 	#else
-		interaction->f_s = albedo.texture->sample(interaction->st);
+		if (mode==MODE::CONSTANT) interaction->f_s=albedo.constant;
+		else                      interaction->f_s=albedo.texture->sample(interaction->st);
 	#endif
 }
