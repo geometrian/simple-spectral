@@ -161,6 +161,25 @@ int main(int argc, char* argv[]) {
 		Color::init();
 		#endif
 
+		//Round-trip error test/demonstration
+		#if 0
+		{
+			Color::round_trip_lrgb(lRGB_F32( 1,0,1 ));
+
+			lRGB_F32 black   = Color::round_trip_lrgb(lRGB_F32( 0, 0, 0 ));
+			lRGB_F32 blue    = Color::round_trip_lrgb(lRGB_F32( 0, 0, 1 ));
+			lRGB_F32 green   = Color::round_trip_lrgb(lRGB_F32( 0, 1, 0 ));
+			lRGB_F32 cyan    = Color::round_trip_lrgb(lRGB_F32( 0, 1, 1 ));
+			lRGB_F32 red     = Color::round_trip_lrgb(lRGB_F32( 1, 0, 0 ));
+			lRGB_F32 magenta = Color::round_trip_lrgb(lRGB_F32( 1, 0, 1 ));
+			lRGB_F32 yellow  = Color::round_trip_lrgb(lRGB_F32( 1, 1, 0 ));
+			lRGB_F32 white   = Color::round_trip_lrgb(lRGB_F32( 1, 1, 1 ));
+
+			//Put a breakpoint here with your debugger to check the values.
+			int j = 6;
+		}
+		#endif
+
 		//Create renderer
 		Renderer renderer(options);
 		#ifdef SUPPORT_WINDOWED

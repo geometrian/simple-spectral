@@ -73,6 +73,50 @@ _Spectrum _Spectrum::operator*(float sc) const {
 	for (float& f : result._data) f*=sc;
 	return result;
 }
+_Spectrum _Spectrum::operator*(_Spectrum const& other) const {
+	nm low  = std::max(_low, other._low );
+	nm high = std::min(_high,other._high);
+
+	//TODO: other cases are valid, but not implemented!
+	assert(
+		_delta_lambda == other._delta_lambda &&
+		std::fmod(       _low -low,        _delta_lambda )==0.0f &&
+		std::fmod( other._low -low,  other._delta_lambda )==0.0f &&
+		std::fmod(       _high-high,       _delta_lambda )==0.0f &&
+		std::fmod( other._high-high, other._delta_lambda )==0.0f
+	);
+
+	std::vector<float> data;
+	data.resize(static_cast<size_t>( (high-low)/_delta_lambda + 1 ));
+	for (size_t i=0;i<data.size();++i) {
+		nm lambda = low + _delta_lambda*static_cast<float>(i);
+		data[i] = _sample_nearest(lambda) * other._sample_nearest(lambda);
+	}
+
+	return _Spectrum( data, low,high );
+}
+_Spectrum _Spectrum::operator+(_Spectrum const& other) const {
+	nm low  = std::max(_low, other._low );
+	nm high = std::min(_high,other._high);
+
+	//TODO: other cases are valid, but not implemented!
+	assert(
+		_delta_lambda == other._delta_lambda &&
+		std::fmod(       _low -low,        _delta_lambda )==0.0f &&
+		std::fmod( other._low -low,  other._delta_lambda )==0.0f &&
+		std::fmod(       _high-high,       _delta_lambda )==0.0f &&
+		std::fmod( other._high-high, other._delta_lambda )==0.0f
+	);
+
+	std::vector<float> data;
+	data.resize(static_cast<size_t>( (high-low)/_delta_lambda + 1 ));
+	for (size_t i=0;i<data.size();++i) {
+		nm lambda = low + _delta_lambda*static_cast<float>(i);
+		data[i] = _sample_nearest(lambda) + other._sample_nearest(lambda);
+	}
+
+	return _Spectrum( data, low,high );
+}
 
 float _Spectrum::integrate(_Spectrum const& spec                         ) {
 	float result = 0.0f;

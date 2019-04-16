@@ -211,6 +211,43 @@ sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	#error
 #endif
 
+lRGB_F32 round_trip_lrgb(lRGB_F32 const& lrgb) {
+	//See above, paper, and `lrgb_to_specrefl(...)` for details.
+
+	//	Spectrum associated with ℓRGB value by our algorithm.
+	SpectralReflectance reflectance =
+		data->basis_bt709.r * lrgb.r +
+		data->basis_bt709.g * lrgb.g +
+		data->basis_bt709.b * lrgb.b
+	;
+
+	//	Reflection, as-of Lambertian or mirror
+	SpectralRadiance radiance = data->D65_rad * reflectance;
+
+	#ifdef FLAT_FIELD_CORRECTION
+		//	Assume viewing plane perpendicular to incoming ray, or correction is done by sensor
+		SpectralRadiantFlux const& flux = radiance;
+	#else
+		assert(false);
+	#endif
+
+	//	Viewer-perceived XYZ values of D65 reflecting off our surface
+	CIEXYZ_32F xyz_out = specradflux_to_ciexyz(flux);
+
+	//	Viewer-perceived ℓRGB value of D65 reflecting off our surface.  Hopefully this matches the
+	//		input, `lrgb`!
+	lRGB_F32 lrgb_out = data->matr_XYZtoRGB * xyz_out;
+
+	//	Return value
+	return lrgb_out;
+}
+sRGB_F32 round_trip_srgb(sRGB_F32 const& srgb) {
+	lRGB_F32 lrgb_in  = srgb_to_lrgb(srgb);
+	lRGB_F32 lrgb_out = round_trip_lrgb(lrgb_in);
+	sRGB_F32 srgb_out = lrgb_to_srgb(lrgb_out);
+	return srgb_out;
+}
+
 
 
 #endif

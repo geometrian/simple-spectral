@@ -139,6 +139,10 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz);
 
+//Round-trip functions, for testing/demonstration purposes.
+lRGB_F32 round_trip_lrgb(lRGB_F32 const& lrgb);
+sRGB_F32 round_trip_srgb(sRGB_F32 const& srgb);
+
 #endif
 
 

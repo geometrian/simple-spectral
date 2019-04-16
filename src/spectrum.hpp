@@ -53,6 +53,10 @@ class _Spectrum final {
 
 		//Multiplication of this spectrum by a constant scalar `sc`, returning a new spectrum.
 		_Spectrum operator*(float sc) const;
+		//Multiplication of this spectrum by another spectrum.
+		_Spectrum operator*(_Spectrum const& other) const;
+		//Addition of this spectrum to another spectrum.
+		_Spectrum operator+(_Spectrum const& other) const;
 
 		//Compute the integral of the spectrum with respect to wavelength.
 		static float integrate(_Spectrum const& spec                         );
