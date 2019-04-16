@@ -38,6 +38,9 @@ else()
 endif()
 #message(STATUS "${WINDOW_ARG}")
 
+#No, Microsoft, the standard library is *not* deprecated.
+add_definitions("-D_CRT_SECURE_NO_WARNINGS")
+
 file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.hpp* ${CMAKE_SOURCE_DIR}/src/*.h* ${CMAKE_SOURCE_DIR}/src/*.cpp*)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
@@ -56,10 +59,5 @@ set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_COMMAND_ARGUMENTS
 set_property( TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY
 	"${CMAKE_SOURCE_DIR}"
 )
-
-if("${CMAKE_GENERATOR}" MATCHES "(Win64|IA64)")
-	#No, Microsoft, the standard library is *not* deprecated.
-	add_definitions("-D_CRT_SECURE_NO_WARNINGS")
-endif()
 
 target_link_libraries(${PROJECT_NAME} ${EXTERNAL_LIBRARIES})

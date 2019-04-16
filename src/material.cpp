@@ -111,7 +111,8 @@ MaterialSimpleAlbedoBase::~MaterialSimpleAlbedoBase() {
 		if (mode==MODE::CONSTANT) delete albedo.constant;
 		else                      delete albedo.texture;
 	#else
-		delete albedo.texture;
+		if (mode==MODE::CONSTANT);
+		else                      delete albedo.texture;
 	#endif
 }
 
