@@ -73,7 +73,7 @@ Scene* Scene::get_new_cornell     () {
 			MaterialLambertian* white_floorceil = new MaterialLambertian(*white_back);
 
 			MaterialLambertian* green           = new MaterialLambertian;
-			green->     albedo.constant  = RGB_Reflectance(0,1,0);
+			green->     albedo.constant  = RGB_Reflectance(0.07f,0.38f,0.07f); //Set heuristically.  There is no correct way to set it.
 
 			MaterialLambertian* red             = new MaterialLambertian;
 			red->       albedo.constant  = RGB_Reflectance(1,0,0);

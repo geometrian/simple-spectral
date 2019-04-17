@@ -71,7 +71,7 @@
 	//			based on 1920s experiments and is well-established.  The latter is based on updated
 	//			data, a wider field of view, and a denser sampling.  The latter is probably what one
 	//			should be using.
-	#if 0
+	#if 1
 		#define CIE_OBSERVER 1931
 	#else
 		#define CIE_OBSERVER 2006
