@@ -157,9 +157,12 @@ inline lRGB_F32 lrgb_to_ciexyz(CIEXYZ_32F const& xyz) {
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz);
 
-//Round-trip functions, for testing/demonstration purposes.
+#ifdef RENDER_MODE_SPECTRAL_OURS
+//Round-trip functions, for testing/demonstration purposes.  Note that this is computed in 32-bit
+//	precision!
 lRGB_F32 round_trip_lrgb(lRGB_F32 const& lrgb);
 sRGB_F32 round_trip_srgb(sRGB_F32 const& srgb);
+#endif
 
 #endif
 

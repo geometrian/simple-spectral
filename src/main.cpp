@@ -185,6 +185,7 @@ int main(int argc, char* argv[]) {
 		#if 0 && defined RENDER_MODE_SPECTRAL
 		{
 			//	By integration
+			#if 0
 			{
 				lRGB_F32 black   = Color::round_trip_lrgb(lRGB_F32( 0, 0, 0 ));
 				lRGB_F32 blue    = Color::round_trip_lrgb(lRGB_F32( 0, 0, 1 ));
@@ -198,8 +199,10 @@ int main(int argc, char* argv[]) {
 				//Put a breakpoint here with your debugger to check the values.
 				int j = 6;
 			}
+			#endif
 
 			//	By Monte Carlo integration
+			#if 0
 			{
 				Math::RNG rng;
 				auto test_round_trip_mc = [&](lRGB_F32 const& lrgb_in, size_t count) -> void {
@@ -234,6 +237,32 @@ int main(int argc, char* argv[]) {
 				};
 				test_round_trip_mc( lRGB_F32( 0, 1, 1 ), 65536 );
 			}
+			#endif
+
+			//	Check every 24-bit sRGB values for 32-bit round-trip error.  This takes a while;
+			//		with CIE 1931, the expected maximum error is 1.851469⨯10⁻⁵, which is also fairly
+			//		average.  Note that better results are achieved with 64-bit precision (see
+			//		associated HTML file).
+			#if 0
+			float max_error = 0.0f;
+			for (int r=0;r<=255;++r) {
+				for (int g=0;g<=255;++g) {
+					for (int b=0;b<=255;++b) {
+						sRGB_U8 srgb_u8 = {
+							static_cast<uint8_t>(r),
+							static_cast<uint8_t>(g),
+							static_cast<uint8_t>(b)
+						};
+						sRGB_F32 srgb_in = sRGB_F32(srgb_u8.r,srgb_u8.g,srgb_u8.b)*(1.0f/255.0f);
+						sRGB_F32 srgb_out = Color::round_trip_srgb(srgb_in);
+						sRGB_F32 error = glm::abs( srgb_out - srgb_in );
+						max_error = std::max({ max_error, error.r, error.g, error.b });
+					}
+				}
+				printf("\r%d (%e)   ",r,static_cast<double>(max_error));
+			}
+			printf("Maximum error: %f\n",static_cast<double>(max_error));
+			#endif
 		}
 		#endif
 

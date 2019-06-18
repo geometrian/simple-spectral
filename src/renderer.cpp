@@ -264,7 +264,7 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 		//Convert each wavelength sample to CIE XYZ and average.
 		CIEXYZ_32F ciexyz_avg = Color::specradflux_to_ciexyz( pixel_flux_est, lambda_0 );
 
-		return CIEXYZ_A_32F( ciexyz_avg, hit_anything?1.0f:0.0f );
+		return CIEXYZ_A_32F( ciexyz_avg,     hit_anything?1.0f:0.0f );
 	#else
 		//Die inside.
 		return lRGB_A_F32  ( pixel_flux_est, hit_anything?1.0f:0.0f );

@@ -177,7 +177,7 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 
 	It is apparently based on somewhat-dated values, and they are listed imprecisely.  This amounts
 	to a slight inaccuracy, but we maintain it for consistency with their results (since their
-	method, like other methods, is not round-trip preserving, the matrix used matters).
+	method, like many methods, is not round-trip preserving, the matrix used matters).
 
 	The matrix is also missing the scaling factor by the Y of D65 (almost certainly because the
 	scaling is commonly, albeit less-correctly, computed separately).
@@ -249,6 +249,7 @@ sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	#error
 #endif
 
+#ifdef RENDER_MODE_SPECTRAL_OURS
 lRGB_F32 round_trip_lrgb(lRGB_F32 const& lrgb) {
 	//See above, paper, and `lrgb_to_specrefl(...)` for details.
 
@@ -285,6 +286,7 @@ sRGB_F32 round_trip_srgb(sRGB_F32 const& srgb) {
 	sRGB_F32 srgb_out = lrgb_to_srgb(lrgb_out);
 	return srgb_out;
 }
+#endif
 
 
 
