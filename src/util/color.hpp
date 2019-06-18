@@ -6,6 +6,12 @@
 
 
 
+#ifdef RENDER_MODE_SPECTRAL_JH
+struct _RGB2Spec;
+#endif
+
+
+
 namespace Color {
 
 
@@ -35,6 +41,7 @@ struct _Data final {
 	SpectralRadiance    D65_rad;
 	CIEXYZ_32F          D65_rad_XYZ;
 
+	#if   defined RENDER_MODE_SPECTRAL_OURS
 	//Basis for spectral reflectance computed using our algorithm.  Given any BT.709 "(R,G,B)"
 	//	triple that is linear (pre-gamma) and normalized (in the range "[0,1]"), i.e., ℓRGB ("linear
 	//	RGB"), the spectral reflectance given by:
@@ -50,6 +57,9 @@ struct _Data final {
 		SpectralReflectance g;
 		SpectralReflectance b;
 	} basis_bt709;
+	#elif defined RENDER_MODE_SPECTRAL_JH
+	_RGB2Spec* model_jh2019;
+	#endif
 
 	//Conversion matrix from BT.709 RGB to CIE XYZ
 	glm::mat3x3 matr_lrgb_to_xyz;

@@ -1,4 +1,4 @@
-# Credits omitted for review
+#Modified from original
 
 SET(_glm_HEADER_SEARCH_DIRS
 	"/usr/include"

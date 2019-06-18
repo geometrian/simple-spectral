@@ -1,7 +1,11 @@
 ﻿#include "color.hpp"
 
-#ifdef RENDER_MODE_SPECTRAL_MENG
+#if   defined RENDER_MODE_SPECTRAL_MENG
 	#include "../meng-et-al.-2015/spectrum_grid.h"
+#elif defined RENDER_MODE_SPECTRAL_JH
+	extern "C" {
+		#include "../jakob-and-hanika-2019/rgb2spec.h"
+	}
 #endif
 
 
@@ -114,6 +118,7 @@ void   init() {
 		data->D65_rad_XYZ = specradflux_to_ciexyz(data->D65_rad);
 	}
 
+	#if   defined RENDER_MODE_SPECTRAL_OURS
 	//Load spectral basis functions.  See our paper for details.
 	{
 		#if   CIE_OBSERVER == 1931
@@ -134,6 +139,9 @@ void   init() {
 			#error
 		#endif
 	}
+	#elif defined RENDER_MODE_SPECTRAL_JH
+	data->model_jh2019 = rgb2spec_load("data/jakob-and-hanika-2019-srgb.coeff");
+	#endif
 
 	//Calculate RGB to XYZ (and vice-versa) conversion matrices.
 	{
@@ -145,6 +153,10 @@ void   init() {
 	}
 }
 void deinit() {
+	#ifdef RENDER_MODE_SPECTRAL_JH
+	rgb2spec_free(data->model_jh2019);
+	#endif
+
 	delete data;
 }
 
@@ -186,11 +198,35 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 
 	return result;
 }
+#elif defined RENDER_MODE_SPECTRAL_JH
+SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0) {
+	/*
+	Note: this does not match with the suggested usage.  The first step is supposed to be a pre-
+	process, with the coefficients being discretized in some unspecified way.  This impacts
+	accuracy and precision (negatively) and performance (positively).  For simplicity, we do not do
+	this.
+	*/
+
+	//Convert to model coefficients
+	float coeffs[RGB2SPEC_N_COEFFS];
+	rgb2spec_fetch( data->model_jh2019, &lrgb.r, coeffs );
+
+	//TODO: discretize in some unspecified manner so that if the above were done in a preprocess,
+	//	the runtime memory footprint is the same.  It is not clear how to do this from the paper.
+
+	//Sample the model
+	SpectralReflectance::HeroSample result;
+	for (size_t i=0;i<SAMPLE_WAVELENGTHS;++i) {
+		result[i] = rgb2spec_eval_precise(coeffs,lambda_0+i*LAMBDA_STEP);
+	}
+
+	return result;
+}
 #else
 	#error
 #endif
 
-#if   defined RENDER_MODE_SPECTRAL_OURS
+#if   defined RENDER_MODE_SPECTRAL_OURS || defined RENDER_MODE_SPECTRAL_JH
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	lRGB_F32 lrgb = ciexyz_to_lrgb(xyz);
 	sRGB_F32 srgb = lrgb_to_srgb(lrgb);

@@ -41,7 +41,12 @@ endif()
 #No, Microsoft, the standard library is *not* deprecated.
 add_definitions("-D_CRT_SECURE_NO_WARNINGS")
 
-file(GLOB_RECURSE SOURCE_FILES ${CMAKE_SOURCE_DIR}/src/*.hpp* ${CMAKE_SOURCE_DIR}/src/*.h* ${CMAKE_SOURCE_DIR}/src/*.cpp*)
+file(GLOB_RECURSE SOURCE_FILES
+	${CMAKE_SOURCE_DIR}/src/*.hpp*
+	${CMAKE_SOURCE_DIR}/src/*.h*
+	${CMAKE_SOURCE_DIR}/src/*.cpp*
+	${CMAKE_SOURCE_DIR}/src/*.c*
+)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 

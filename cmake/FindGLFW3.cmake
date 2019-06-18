@@ -1,4 +1,4 @@
-#Credits omitted for review
+#Modified from original
 
 set(_glfw3_HEADER_SEARCH_DIRS
 	"/usr/include"

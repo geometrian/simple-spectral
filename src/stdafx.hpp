@@ -56,14 +56,21 @@
 //	Epsilon, used for a variety of numerical tests.
 #define EPS 0.001f
 
-//	Whether to use spectral rendering (correct), and if so which variant to use (our paper or the
-//		work by Meng et al.) or RGB mode (what many people do instead).
+//	Whether to use spectral rendering (correct), and if so which variant to use (our paper, the work
+//		by Meng et al. 2015, or the work by Jakob and Hanika 2019) or RGB mode (what many people do
+//		instead).
 #if 1
 	#define RENDER_MODE_SPECTRAL
-	#if 1
+
+	#define RENDER_MODE_SPECTRAL_ALGNUM 1
+	#if    RENDER_MODE_SPECTRAL_ALGNUM == 1
 		#define RENDER_MODE_SPECTRAL_OURS
-	#else
+	#elif  RENDER_MODE_SPECTRAL_ALGNUM == 2
 		#define RENDER_MODE_SPECTRAL_MENG
+	#elif  RENDER_MODE_SPECTRAL_ALGNUM == 3
+		#define RENDER_MODE_SPECTRAL_JH
+	#else
+		#error
 	#endif
 
 	//		The CIE observer standard to use.  The 1931 version is the CIE 1931 2° standard
@@ -96,8 +103,8 @@
 //Computed values
 
 #ifdef RENDER_MODE_SPECTRAL
-	#if defined RENDER_MODE_SPECTRAL_MENG && CIE_OBSERVER!=1931
-		#error "Meng et al. only support the CIE 1931 standard observer!"
+	#if !defined RENDER_MODE_SPECTRAL_OURS && CIE_OBSERVER!=1931
+		#error "Only our algorithm currently implements support for the newest CIE standard observer!"
 	#endif
 
 	//	Shortest and longest wavelengths, in nanometers, considered during the rendering.  It only
