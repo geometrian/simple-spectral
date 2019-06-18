@@ -201,18 +201,25 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 #elif defined RENDER_MODE_SPECTRAL_JH
 SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0) {
 	/*
-	Note: this does not match with the suggested usage.  The first step is supposed to be a pre-
-	process, with the coefficients being discretized in some unspecified way.  This impacts
-	accuracy and precision (negatively) and performance (positively).  For simplicity, we do not do
-	this.
+	Note: this does not match with the authors' suggested usage.
+
+	The first step is supposed to be a pre-process.  However, in correspondence with the authors, it
+	seems that the coefficients must remain 32-bit (or at-least 10–16 bits, with 8-bits being
+	challenging but perhaps not impossible).  This means that when the authors' say that the
+	"storage requirements of transformed textures are identical to those of ordinary RGB textures",
+	the "ordinary RGB textures" are supposed to have a higher bit depth than 24-bit.
+
+	For simplicity, this renderer does not implement high-precision textures, and so we have to do
+	both steps here.  Interestingly, their model is fast-enough (or spectral upsampling is simply
+	not that much of a bottleneck) that this approach is still quite performant.
 	*/
 
 	//Convert to model coefficients
 	float coeffs[RGB2SPEC_N_COEFFS];
 	rgb2spec_fetch( data->model_jh2019, &lrgb.r, coeffs );
 
-	//TODO: discretize in some unspecified manner so that if the above were done in a preprocess,
-	//	the runtime memory footprint is the same.  It is not clear how to do this from the paper.
+	//These coefficients would then be re-encoded into the 32-bit texture before being loaded again
+	//	at runtime below.
 
 	//Sample the model
 	SpectralReflectance::HeroSample result;

@@ -96,7 +96,7 @@ void Renderer::_print_progress() const {
 		//End of render.  Print elapsed time.
 		printf("\rRender completed in ");
 		pretty_print_time(time_since_start);
-		printf(" seconds             \n");
+		printf("             \n");
 	}
 }
 
