@@ -11,14 +11,9 @@ namespace Math {
 class SphericalTriangle final {
 	public:
 		//Vertices
-		union {
-			struct {
-				Pos A;
-				Pos B;
-				Pos C;
-			};
-			Pos ABC[3];
-		};
+		Pos A;
+		Pos B;
+		Pos C;
 
 		float a,b,c; //Side lengths (on the surface of the sphere); also equal to the angle they subtend.
 		float sin_a,sin_b,sin_c; //Sine of angles subtended by sides.
