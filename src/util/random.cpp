@@ -130,12 +130,12 @@ Dir rand_toward_sphericaltri(RNG& rng, SphericalTriangle const& tri) {
 		return dir * glm::inversesqrt(lensq);
 	};
 
-	glm::vec3 C_hat = q*tri.A + sqrt(1-q*q)*func_bar(tri.C,tri.A);
+	glm::vec3 C_hat = q*tri.A + std::sqrt(1-q*q)*func_bar(tri.C,tri.A);
 
 	float z = 1.0f - r1*( 1.0f - glm::dot(C_hat,tri.B) );
 	z = glm::clamp( z, -1.0f,1.0f ); //Numerical issues
 
-	Dir result = z*tri.B + sqrt(1-z*z)*func_bar(C_hat,tri.B);
+	Dir result = z*tri.B + std::sqrt(1-z*z)*func_bar(C_hat,tri.B);
 	assert(!std::isnan(result.x)&&!std::isnan(result.y)&&!std::isnan(result.z));
 	return result;
 }
