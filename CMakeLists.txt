@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+cmake_minimum_required(VERSION 3.5 FATAL_ERROR)
 
 project(simple-spectral)
 
@@ -20,6 +20,9 @@ find_package(GLM REQUIRED)
 message(STATUS "GLM at ${GLM_INCLUDE_DIR}")
 include_directories(${GLM_INCLUDE_DIRS})
 set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} ${GLM_LIBRARIES})
+if (UNIX)
+	set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} pthread)
+endif()
 
 if(SUPPORT_WINDOWED)
 	add_definitions("-DSUPPORT_WINDOWED")
