@@ -316,8 +316,20 @@ void Renderer::_render_threadwork() {
 	cleanest.
 	*/
 	Math::RNG rng;
-	//Seed the RNG with the thread index (hashed to increase variance).
-	rng.seed(static_cast<Math::RNG::result_type>( get_hashed(thread_index) ));
+	/*
+	Seed the RNG with some kind of data.  Since many RNGs will produce similar starting sequences
+	given similar seeds, and it is desirable for different threads to have different sequences, it
+	is desirable for seeds to vary substantially between threads.
+
+	A simple way to do this is to scramble the thread's index with a hash function, though on some
+	platforms `std::hash` is the identity so we have to implement this ourselves to ensure it
+	actually works.  Passing zero for the seed is also not allowed, so we choose `1` if that's the
+	case.  Note that that potential increment comes after the hashing, so it is not particularly
+	likely to result in two threads receiving the same seed.
+	*/
+	size_t seed = get_hashed(thread_index);
+	if (seed==0) ++seed;
+	rng.seed(static_cast<Math::RNG::result_type>(seed));
 
 	//Main render thread loop
 	while (_render_continue) {

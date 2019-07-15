@@ -239,8 +239,30 @@ class SphereBound final {
 
 //	Hash functions
 template <typename type> inline size_t get_hashed(type const& item                     ) {
-	std::hash<type> hasher;
-	return hasher(item);
+	if constexpr (std::is_integral_v<type>) {
+		//On some platforms, the `std::hash` for integral types is the identity function.  Choose
+		//	something that implements more randomness.  This hash takes ideas from MSVC.
+		uint8_t tmp[sizeof(type)]; memcpy(tmp,&item,sizeof(item));
+		size_t hash;
+		if constexpr (sizeof(size_t)==sizeof(uint32_t)) {
+			hash = 2166136261u;
+			for (size_t i=0;i<sizeof(type);++i) {
+				hash ^= static_cast<size_t>(tmp[i]);
+				hash *= 16777619u;
+			}
+		} else {
+			static_assert(sizeof(size_t)==sizeof(uint64_t),"Not implemented!");
+			hash = 14695981039346656037ull;
+			for (size_t i=0;i<sizeof(type);++i) {
+				hash ^= static_cast<size_t>(tmp[i]);
+				hash *= 1099511628211ull;
+			}
+		}
+		return hash;
+	} else {
+		std::hash<type> hasher;
+		return hasher(item);
+	}
 }
 template <typename type> inline size_t get_hashed(type const& item, size_t combine_with) {
 	//http://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
