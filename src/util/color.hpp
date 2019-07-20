@@ -147,11 +147,11 @@ inline CIEXYZ_32F specradflux_to_ciexyz(SpectralRadiantFlux::HeroSample const& s
 SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda_0);
 
 //Conversion from/to CIE XYZ to/from linear (pre-gamma), normalized BT.709 RGB.
-inline lRGB_F32 ciexyz_to_lrgb(CIEXYZ_32F const& xyz) {
+inline lRGB_F32   ciexyz_to_lrgb(CIEXYZ_32F const& xyz ) {
 	return data->matr_xyz_to_lrgb * xyz;
 }
-inline lRGB_F32 lrgb_to_ciexyz(CIEXYZ_32F const& xyz) {
-	return data->matr_lrgb_to_xyz * xyz;
+inline CIEXYZ_32F lrgb_to_ciexyz(lRGB_F32   const& lrgb) {
+	return data->matr_lrgb_to_xyz * lrgb;
 }
 
 //Direct conversion from CIE XYZ to post-gamma, normalized BT.709 RGB (i.e. sRGB).
