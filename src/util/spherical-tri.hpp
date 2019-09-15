@@ -15,9 +15,9 @@ class SphericalTriangle final {
 		Pos B;
 		Pos C;
 
-		float a,b,c; //Side lengths (on the surface of the sphere); also equal to the angle they subtend.
-		float sin_a,sin_b,sin_c; //Sine of angles subtended by sides.
-		float cos_a,cos_b,cos_c; //Cosine of angles subtended by sides.
+		float a,b,c; //Side lengths (on the surface of the sphere); also equal to the angle they subtend with respect to the sphere's center.
+		float sin_a,sin_b,sin_c; //Sine of angles subtended by sides from center of sphere.
+		float cos_a,cos_b,cos_c; //Cosine of angles subtended by sides from center of sphere.
 
 		radians alpha,beta,gamma; //Vertex angles at A, B, and C, respectively.
 		float cos_alpha,cos_beta,cos_gamma; //Cosine of angles at vertices.

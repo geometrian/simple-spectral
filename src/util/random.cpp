@@ -110,16 +110,29 @@ Dir rand_toward_sphericaltri(RNG& rng, SphericalTriangle const& tri) {
 	float q;
 	if (sin_alpha>0) {
 		float random_area = r0 * tri.surface_area;
-		radians angle = random_area - tri.alpha;
-		float s = std::sin(angle);
-		float t = std::cos(angle);
+		radians phi = random_area - tri.alpha;
+		float s = std::sin(phi);
+		float t = std::cos(phi);
 		float u = t - tri.cos_alpha;
 		float v = s + sin_alpha*tri.cos_c;
-		q = ( (v*t-u*s)*tri.cos_alpha - v )/( (v*s+u*t)*sin_alpha );
+		float denom = (v*s+u*t)*sin_alpha;
+		if (denom!=0.0f) {
+			q = ( (v*t-u*s)*tri.cos_alpha - v )/denom;
+		} else {
+			//Rarely, a 0/0 NaN might have occurred in the division above, the primary cause being
+			//	`u` and `v` both being zero.  At-least mathematically, this means that ϕ=±α and that
+			//	α=0, α=π, c=0, c=π, or some combination---although there is some leeway due to
+			//	floating-point error.  These correspond to a degenerate triangle of some kind, so it
+			//	doesn't really matter what we do.  Below corresponds to α=0 and the sampling
+			//	triangle direction perpendicular from B.
+			q = tri.cos_c;
+		}
+		assert(!std::isnan(q));
 	} else {
 		//Triangle is degenerate.  However, this allows us to compute the desired cosine by
 		//	interpolating the angle linearly.
 		q = cos( tri.b * r0 );
+		assert(!std::isnan(q));
 	}
 	q = glm::clamp( q, -1.0f,1.0f ); //Numerical issues
 
