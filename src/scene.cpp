@@ -342,13 +342,22 @@ Scene* Scene::get_new_plane_srgb  () {
 		#endif
 		result->materials["light"] = mtl_light;
 
-		//Either `MaterialMirror` or `MaterialLambertian` produces the same results, but the mirror
-		//	converges much faster because the ray direction is not a random variable.
-		#if 1 //Lizard texture
-			MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/crystal-lizard-4096.png");
-		#else //A helpful 64⨯64 test image I made
-			MaterialSimpleAlbedoBase* mtl_tex = new MaterialMirror("data/scenes/test-img.png");
-		#endif
+		MaterialSimpleAlbedoBase* mtl_tex = new
+			#ifdef EXPLICIT_LIGHT_SAMPLING
+			MaterialLambertian(
+			#else
+			//Both `MaterialLambertian` and `MaterialMirror` converge to the same render (as long as
+			//	explicit light sampling isn't used; light sampling will never hit a delta BRDF).
+			//	However, the mirror material converges much faster because the ray direction is not
+			//	a random variable.
+			MaterialMirror(
+			#endif
+				#if 1 //Lizard texture
+				"data/scenes/crystal-lizard-4096.png"
+				#else //A helpful 64⨯64 test image I made
+				"data/scenes/test-img.png"
+				#endif
+			);
 		result->materials["tex"] = mtl_tex;
 	}
 
