@@ -76,8 +76,8 @@ bool PrimTri:: intersect(Ray const& ray, HitRecord* hitrec) const /*override*/ {
 	float const T = U*ABCz.x + V*ABCz.y + W*ABCz.z;
 
 	//	Check signs of `det` and `T` match
-	uint32_t det_u; memcpy(&det_u,&det, sizeof(float));
-	uint32_t T_u;   memcpy(&T_u,  &T,   sizeof(float));
+	uint32_t det_u; std::memcpy(&det_u,&det, sizeof(float));
+	uint32_t T_u;   std::memcpy(&T_u,  &T,   sizeof(float));
 	bool different = ((det_u&0x80000000u) ^ (T_u&0x80000000u)) > 0;
 	if (different) return false;
 

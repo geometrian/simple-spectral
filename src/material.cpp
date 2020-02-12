@@ -25,7 +25,7 @@ sRGB_ReflectanceTexture::sRGB_ReflectanceTexture(std::string const& path) {
 	_data = new sRGB_U8[res[1]*res[0]];
 
 	//Copy loaded data into pixels
-	memcpy(_data,out.data(),3*res[1]*res[0]);
+	std::memcpy(_data,out.data(),3*res[1]*res[0]);
 }
 sRGB_ReflectanceTexture::sRGB_ReflectanceTexture(sRGB_ReflectanceTexture const& other) :
 	res{other.res[0],other.res[1]}
@@ -34,7 +34,7 @@ sRGB_ReflectanceTexture::sRGB_ReflectanceTexture(sRGB_ReflectanceTexture const& 
 	_data = new sRGB_U8[res[1]*res[0]];
 
 	//Copy `other`'s data into pixels
-	memcpy(_data,other._data,3*res[1]*res[0]);
+	std::memcpy(_data,other._data,3*res[1]*res[0]);
 }
 sRGB_ReflectanceTexture::~sRGB_ReflectanceTexture() {
 	//Clean up pixel data

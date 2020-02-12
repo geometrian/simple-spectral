@@ -7,6 +7,7 @@
 //	C Standard Library
 #include <cassert>
 #include <cstdio>
+#include <cstring>
 
 //	C++ Standard Library
 #include <algorithm>
@@ -242,7 +243,7 @@ template <typename type> inline size_t get_hashed(type const& item              
 	if constexpr (std::is_integral_v<type>) {
 		//On some platforms, the `std::hash` for integral types is the identity function.  Choose
 		//	something that implements more randomness.  This hash takes ideas from MSVC.
-		uint8_t tmp[sizeof(type)]; memcpy(tmp,&item,sizeof(item));
+		uint8_t tmp[sizeof(type)]; std::memcpy(tmp,&item,sizeof(item));
 		size_t hash;
 		if constexpr (sizeof(size_t)==sizeof(uint32_t)) {
 			hash = 2166136261u;

@@ -11,7 +11,7 @@ inline static float _underestimate_pi() {
 	static_assert(sizeof(float)==sizeof(uint32_t),"Implementation error!");
 	uint32_t u = 0x40490FDAu;
 	float result;
-	memcpy(&result,&u,sizeof(uint32_t));
+	std::memcpy(&result,&u,sizeof(uint32_t));
 	return result;
 }
 
