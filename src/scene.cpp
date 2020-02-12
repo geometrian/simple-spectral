@@ -288,7 +288,8 @@ Scene* Scene::get_new_cornell     () {
 Scene* Scene::get_new_cornell_srgb() {
 	Scene* result = Scene::get_new_cornell();
 
-	MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-512.png"); float lightsc=30.0f;
+	//MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-512.png"); float lightsc=30.0f;
+	MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/crystal-lizard-4096.png"); float lightsc=30.0f;
 	//MaterialBase* mtl_tex = new MaterialLambertian("data/scenes/test-img.png"); float lightsc=20.0f;
 	result->materials["srgb"] = mtl_tex;
 
@@ -347,7 +348,7 @@ Scene* Scene::get_new_plane_srgb  () {
 			MaterialLambertian(
 			#else
 			//Both `MaterialLambertian` and `MaterialMirror` converge to the same render (as long as
-			//	explicit light sampling isn't used; light sampling will never hit a delta BRDF).
+			//	explicit light sampling isn't used; light sampling will never hit a δ BRDF).
 			//	However, the mirror material converges much faster because the ray direction is not
 			//	a random variable.
 			MaterialMirror(

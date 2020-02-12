@@ -46,7 +46,7 @@
 #define MAX_DEPTH 10u
 
 //	Work items during the path trace are square tiles of pixels.  This is their width and height.
-#define TILE_SIZE 4_zu
+#define TILE_SIZE 8_zu
 
 //	If enabled, compensates for the cosine-factor falloff due to viewing rays leaving the camera
 //		sensor at an angle by brightening those areas by an inverse factor.  This is quite typical

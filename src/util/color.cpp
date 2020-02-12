@@ -114,7 +114,8 @@ void   init() {
 		//	out either way), but doing it means that we're tracing units with a physical meaning.  
 		assert(data->D65_orig[560_nm][0]==100.0f);
 		//	Factor of "100" to scale back to "1", and factor of "1000" to convert from "W" to "kW".
-		data->D65_rad = data->D65_orig * ( 0.00001f * _planck(560_nm,temp_d65) );
+		float scalar = 0.00001f * _planck(560_nm,temp_d65);
+		data->D65_rad = data->D65_orig * scalar;
 		data->D65_rad_XYZ = specradflux_to_ciexyz(data->D65_rad);
 	}
 
@@ -237,7 +238,6 @@ SpectralReflectance::HeroSample lrgb_to_specrefl(lRGB_F32 const& lrgb, nm lambda
 sRGB_F32 ciexyz_to_srgb(CIEXYZ_32F const& xyz) {
 	lRGB_F32 lrgb = ciexyz_to_lrgb(xyz);
 	sRGB_F32 srgb = lrgb_to_srgb(lrgb);
-	sRGB_F32 srgb255 = 255.0f*srgb;
 	return lrgb_to_srgb(lrgb);
 }
 #elif defined RENDER_MODE_SPECTRAL_MENG
