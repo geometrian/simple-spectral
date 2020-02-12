@@ -27,9 +27,9 @@ class Scene final {
 			float vfov_deg;
 
 			//Projection, view, and inverse-projection-times-view matrices.
-			glm::mat4x4 matr_P;
-			glm::mat4x4 matr_V;
-			glm::mat4x4 matr_PV_inv;
+			glm::dmat4x4 matr_P;
+			glm::dmat4x4 matr_V;
+			glm::dmat4x4 matr_PV_inv;
 		} camera;
 
 		//Backing store of materials.  Map of their names onto the materials themselves.

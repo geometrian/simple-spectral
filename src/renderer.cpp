@@ -109,21 +109,26 @@ lRGB_A_F32   Renderer::_render_sample(Math::RNG& rng, size_t i,size_t j)
 	//Render sample within pixel (`i`,`j`).
 
 	//	Location within the framebuffer
-	ST framebuffer_st(
-		(static_cast<float>(i)+rand_1f(rng)) / static_cast<float>(framebuffer.res[0]),
-		(static_cast<float>(j)+rand_1f(rng)) / static_cast<float>(framebuffer.res[1])
+	//		Compute with `double`-precision, which helps for large framebuffers.
+	glm::dvec2 subpixel(rand_1d(rng),rand_1d(rng));
+	glm::dvec2 framebuffer_st(
+		(static_cast<double>(i)+subpixel.x) / static_cast<double>(framebuffer.res[0]),
+		(static_cast<double>(j)+subpixel.y) / static_cast<double>(framebuffer.res[1])
 	);
 	//	Normalized device coordinates (to borrow OpenGL terminology)
-	glm::vec2 framebuffer_ndc = framebuffer_st*2.0f - glm::vec2(1.0f);
+	glm::dvec2 framebuffer_ndc = framebuffer_st*2.0 - glm::dvec2(1.0);
 
 	//	Camera ray through pixel.  This is a pinhole camera model (bad) with the framebuffer
 	//		semantically in-front of the center of projection (bogus).  Nevertheless, it is just-
 	//		about the simplest-possible camera model.
+	//		Note: this, and especially the normalize, must be computed in `double`-precision.  GLM
+	//			decides to use inverse square root to normalize, which means lots of precision is
+	//			lost, leading to stair-step artifacts.
 	Dir camera_ray_dir;
 	{
-		glm::vec4 point = scene->camera.matr_PV_inv * glm::vec4( framebuffer_ndc, 0.0f, 1.0f );
+		glm::dvec4 point = scene->camera.matr_PV_inv * glm::dvec4( framebuffer_ndc, 0.0, 1.0 );
 		point /= point.w;
-		camera_ray_dir = glm::normalize( Pos(point) - scene->camera.pos );
+		camera_ray_dir = Dir(glm::normalize( glm::dvec3(point) - glm::dvec3(scene->camera.pos) ));
 	}
 
 	#ifdef RENDER_MODE_SPECTRAL
