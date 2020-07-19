@@ -1,0 +1,2 @@
+# Github detects one ".h" file as being Objective-C for some reason.  Fix that.
+*.h linguist-language=C
